@@ -7,9 +7,9 @@
   ============================================================================
 
   PURPOSE:
-    APA team advancement calculator. Players select their Double Jeopardy
-    division from a dropdown and see tri-annual qualifiers, playoff bracket
-    structure, and division size.
+    APA team advancement calculator. Players can look up their teams by APA#
+    or email, then select their Double Jeopardy division from a dropdown to
+    see tri-annual qualifiers, playoff bracket structure, and division size.
 
     Read-only viewer — no login, no write operations.
 
@@ -34,9 +34,16 @@
     maintenance message. Fails open (if the check errors, the page loads
     normally — never blocks users due to a backend hiccup).
 
+  PLAYER LOOKUP:
+    Compact search bar (MultiPass-style login bar) between header and
+    division dropdown. Calls lookupPlayer with APA# or email. On success,
+    shows player name and team/division cards. Division names in cards are
+    clickable — they auto-select the matching dropdown option and trigger
+    the division lookup.
+
   ============================================================================
   -->
-  <title>Final Standings — South Portland Metro APA</title>
+  <title>FinalStandings — South Portland Metro APA</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
@@ -110,6 +117,7 @@
     .header-title {
       font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem);
       font-weight: 900;
+      font-style: italic;
       line-height: 1.1;
       margin: 0;
     }
@@ -125,6 +133,143 @@
       font-size: 0.875rem;
       opacity: 0.85;
       margin-top: 8px;
+    }
+
+    /* =====================================================================
+       PLAYER LOOKUP BAR — Compact horizontal search (MultiPass-style)
+       =====================================================================
+       Horizontal bar with input + button. Max-width matches page,
+       pill-shaped with subtle shadow. Input takes remaining width.
+       ===================================================================== */
+    .lookup-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 480px;
+      margin: 0 auto 16px;
+      padding: 8px 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .lookup-bar .lookup-input {
+      flex: 1;
+      min-width: 0;
+      padding: 10px 14px;
+      font-size: 0.9375rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-family: inherit;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      /* 48px min tap target via padding */
+      min-height: 44px;
+    }
+
+    .lookup-bar .lookup-input:focus {
+      border-color: var(--spm-accent);
+      box-shadow: 0 0 0 3px rgba(0, 49, 161, 0.15);
+    }
+
+    .lookup-bar .lookup-btn {
+      flex-shrink: 0;
+      padding: 10px 20px;
+      border: none;
+      border-bottom: 3px solid rgba(0, 0, 0, 0.25);
+      border-radius: 999px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(0,0,0,0.10) 100%),
+        linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
+      color: #fff;
+      font-weight: 900;
+      font-size: 0.9375rem;
+      letter-spacing: 0.08em;
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.35),
+        0 4px 10px rgba(0, 0, 0, 0.30);
+      cursor: pointer;
+      font-family: inherit;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      transition: box-shadow 0.15s, transform 0.15s;
+      white-space: nowrap;
+      /* 48px min tap target */
+      min-height: 44px;
+    }
+
+    .lookup-bar .lookup-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .lookup-bar .lookup-btn:active:not(:disabled) {
+      transform: translateY(2px);
+      border-bottom-width: 1px;
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.15),
+        0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+
+    /* -- Lookup status text ----------------------------------------------- */
+    .lookup-status {
+      text-align: center;
+      color: var(--muted);
+      min-height: 1.5em;
+      margin-bottom: 8px;
+      font-size: 0.875rem;
+    }
+
+    /* -- Player results section ------------------------------------------- */
+    .player-results {
+      display: none;
+      max-width: 480px;
+      margin: 0 auto 16px;
+    }
+
+    .player-name {
+      text-align: center;
+      font-size: 1.0625rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .player-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .player-card .team-name {
+      font-weight: 700;
+      font-size: 0.9375rem;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .player-card .team-detail {
+      font-size: 0.8125rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .player-card .division-link {
+      color: var(--spm-accent);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      text-underline-offset: 2px;
+    }
+
+    .player-card .division-link:hover {
+      text-decoration-style: solid;
     }
 
     /* -- Intro text ------------------------------------------------------ */
@@ -262,12 +407,31 @@
       .box {
         padding: 20px 24px;
       }
+
+      .lookup-bar {
+        max-width: 560px;
+      }
+
+      .player-results {
+        max-width: 560px;
+      }
     }
 
     /* -- Hover states (non-touch devices only) --------------------------- */
     @media (hover: hover) {
       .division-select:hover {
         border-color: var(--spm-accent);
+      }
+
+      .lookup-bar .lookup-btn:hover:not(:disabled) {
+        box-shadow:
+          inset 0 1px 1px rgba(255, 255, 255, 0.35),
+          0 6px 14px rgba(0, 0, 0, 0.35);
+      }
+
+      .player-card:hover {
+        border-color: var(--spm-accent);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       }
     }
   </style>
@@ -278,10 +442,29 @@
 
   <!-- ── Header ──────────────────────────────────────────────────────── -->
   <header>
-    <h1 class="header-title">South Portland Metro APA</h1>
+    <h1 class="header-title">FinalStandings</h1>
     <div class="header-subtitle">Tri-Annuals &amp; Playoffs</div>
     <div class="session-text" id="sessionText"></div>
   </header>
+
+  <!-- ── Player Lookup Bar ─────────────────────────────────────────── -->
+  <form class="lookup-bar" id="lookupForm" autocomplete="off">
+    <input
+      class="lookup-input"
+      id="lookupInput"
+      type="text"
+      placeholder="APA # or Email"
+      aria-label="APA number or email address"
+      inputmode="text"
+    />
+    <button class="lookup-btn" id="lookupBtn" type="submit">FIND ME</button>
+  </form>
+
+  <!-- ── Lookup status ─────────────────────────────────────────────── -->
+  <div class="lookup-status" id="lookupStatus"></div>
+
+  <!-- ── Player results (between search bar and division dropdown) ── -->
+  <div class="player-results" id="playerResults"></div>
 
   <!-- ── Intro ───────────────────────────────────────────────────────── -->
   <p class="lead">Select your Double Jeopardy division to see advancement details.</p>
@@ -326,7 +509,10 @@
   //   1. DOMContentLoaded → maintenance mode check
   //   2. If maintenance passes → fetch initial data (session + divisions)
   //   3. Populate dropdown (grouped by division name, sorted by number)
-  //   4. On dropdown change → fetch advancement info → render result cards
+  //   4. Player lookup form → callServer('lookupPlayer') → render cards
+  //      - Division names in cards are clickable if they match a dropdown
+  //        option — clicking auto-selects that division and triggers lookup
+  //   5. On dropdown change → fetch advancement info → render result cards
   //
   // All API calls go through callServer() which handles:
   //   - Content-Type: text/plain (avoids CORS preflight)
@@ -586,6 +772,152 @@
   }
 
 
+  // ── selectDivisionByName — Programmatically select a dropdown option ──
+  // Finds the option whose value matches the given division name, selects
+  // it, and dispatches a 'change' event to trigger the lookup.
+
+  function selectDivisionByName(divisionName) {
+    var selectEl = document.getElementById('divisionSelect');
+    var options = selectEl.options;
+    for (var i = 0; i < options.length; i++) {
+      if (options[i].value === divisionName) {
+        selectEl.selectedIndex = i;
+        selectEl.dispatchEvent(new Event('change'));
+        // Scroll the dropdown into view so results are visible
+        selectEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+    }
+  }
+
+
+  // ── renderPlayerResults — Display player lookup cards ──────────────────
+  // Shows the player's name and a card for each team they're on.
+  // Division names that match a dropdown option become clickable links.
+  //
+  // API response shape (from Code.js lookupPlayer):
+  //   {
+  //     success: true,
+  //     found: true,
+  //     player: { memberNumber, firstName, lastName },
+  //     teams: [
+  //       { teamNumber, teamName, role, divisionNumber, divisionName, nightOfPlay }
+  //     ]
+  //   }
+
+  function renderPlayerResults(data) {
+    var container = document.getElementById('playerResults');
+    var statusEl  = document.getElementById('lookupStatus');
+
+    // ── Not found ──
+    if (!data.found) {
+      container.style.display = 'none';
+      statusEl.textContent = 'No player found. Check your APA # or email.';
+      return;
+    }
+
+    // ── Build the set of division names available in the dropdown ──
+    var selectEl = document.getElementById('divisionSelect');
+    var dropdownNames = {};
+    for (var i = 0; i < selectEl.options.length; i++) {
+      var val = selectEl.options[i].value;
+      if (val) dropdownNames[val] = true;
+    }
+
+    // ── Player name header ──
+    var player = data.player || {};
+    var fullName = (player.firstName || '') + ' ' + (player.lastName || '');
+    fullName = fullName.trim() || 'Player';
+
+    var html = '<div class="player-name">' + escapeHtml(fullName) + '</div>';
+
+    // ── Team cards ──
+    var teams = data.teams || [];
+    for (var t = 0; t < teams.length; t++) {
+      var team = teams[t];
+      var divName = team.divisionName || '';
+      var isClickable = divName && dropdownNames[divName];
+
+      html += '<div class="player-card">';
+      html += '<div class="team-name">' + escapeHtml(team.teamName || 'Team ' + team.teamNumber) + '</div>';
+      html += '<div class="team-detail">';
+      html += 'Team #' + escapeHtml(team.teamNumber);
+      if (team.role) {
+        html += ' &middot; ' + escapeHtml(team.role);
+      }
+      html += '</div>';
+
+      // Division line — clickable if it matches a dropdown option
+      if (divName) {
+        html += '<div class="team-detail">';
+        if (isClickable) {
+          html += '<span class="division-link" data-division="' + escapeHtml(divName) + '">'
+            + escapeHtml(divName)
+            + '</span>';
+        } else {
+          html += escapeHtml(divName);
+        }
+        if (team.nightOfPlay) {
+          html += ' &middot; ' + escapeHtml(team.nightOfPlay);
+        }
+        html += '</div>';
+      }
+
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+    container.style.display = 'block';
+    statusEl.textContent = '';
+
+    // ── Attach click handlers to division links ──
+    var links = container.querySelectorAll('.division-link');
+    links.forEach(function(link) {
+      link.addEventListener('click', function() {
+        var divName = this.getAttribute('data-division');
+        if (divName) selectDivisionByName(divName);
+      });
+    });
+  }
+
+
+  // ── Player lookup form submit handler ─────────────────────────────────
+
+  document.getElementById('lookupForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    var input = document.getElementById('lookupInput').value.trim();
+    var statusEl = document.getElementById('lookupStatus');
+    var container = document.getElementById('playerResults');
+    var btn = document.getElementById('lookupBtn');
+
+    if (!input) {
+      statusEl.textContent = 'Enter your APA # or email address.';
+      return;
+    }
+
+    // Disable button during request
+    btn.disabled = true;
+    statusEl.textContent = 'Looking up...';
+    container.style.display = 'none';
+
+    try {
+      var data = await callServer('lookupPlayer', { input: input });
+      btn.disabled = false;
+
+      if (!data || !data.success) {
+        statusEl.textContent = (data && data.error) || 'Lookup failed. Please try again.';
+        return;
+      }
+
+      renderPlayerResults(data);
+    } catch (err) {
+      btn.disabled = false;
+      statusEl.textContent = err.message || 'Lookup failed. Please try again.';
+    }
+  });
+
+
   // ── Division select change handler ────────────────────────────────────
 
   document.getElementById('divisionSelect').addEventListener('change', async function() {
@@ -642,7 +974,7 @@
           document.body.style.cssText = 'margin:0;padding:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100svh;font-family:system-ui,-apple-system,sans-serif;';
           var box = document.createElement('div');
           box.style.cssText = 'text-align:center;padding:48px 24px;max-width:500px;';
-          box.innerHTML = '<div style="font-size:48px;font-weight:900;color:#ea002a;line-height:1.1;margin-bottom:24px;">Final Standings</div>'
+          box.innerHTML = '<div style="font-size:48px;font-weight:900;font-style:italic;color:#ea002a;line-height:1.1;margin-bottom:24px;">FinalStandings</div>'
             + '<div style="font-size:20px;font-weight:600;color:#0031a1;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:16px;">Under Maintenance</div>'
             + '<div style="font-size:15px;color:#888;line-height:1.6;">We\'re making improvements.<br>Check back shortly.</div>';
           document.body.appendChild(box);
