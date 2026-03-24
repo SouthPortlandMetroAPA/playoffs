@@ -129,10 +129,34 @@
       margin-top: 4px;
     }
 
-    .session-text {
-      font-size: 0.875rem;
-      opacity: 0.85;
+    /* -- Session dropdown in header -------------------------------------- */
+    .session-select {
       margin-top: 8px;
+      padding: 4px 12px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      font-weight: 600;
+      color: #fff;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 999px;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      text-align: center;
+      outline: none;
+      opacity: 0.9;
+    }
+
+    .session-select option {
+      color: var(--text);
+      background: var(--card);
+    }
+
+    .session-select:focus {
+      border-color: #fff;
+      opacity: 1;
     }
 
     /* =====================================================================
@@ -307,31 +331,132 @@
       font-size: 0.9375rem;
     }
 
-    /* -- Division selector ----------------------------------------------- */
+    /* -- Division selector (custom dropdown) ------------------------------ */
     .selector-wrap {
       display: flex;
       justify-content: center;
       margin-bottom: 16px;
+      position: relative;
     }
 
+    /* Hidden native select — still in DOM for programmatic access */
     .division-select {
+      display: none;
+    }
+
+    .custom-dropdown {
       width: 100%;
       max-width: 480px;
-      padding: 12px 16px;
+      position: relative;
+    }
+
+    .custom-dropdown-trigger {
+      width: 100%;
+      padding: 12px 40px 12px 16px;
       border: 1px solid var(--border);
       border-radius: 12px;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 0.875rem;
+      font-size: 0.9375rem;
+      font-weight: 600;
       background: var(--card);
       color: var(--text);
       cursor: pointer;
-      /* 48px min tap target via padding */
       min-height: 48px;
+      text-align: left;
+      position: relative;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      transition: border-color 0.2s;
     }
 
-    .division-select:focus {
-      outline: 2px solid var(--spm-accent);
-      outline-offset: 2px;
+    .custom-dropdown-trigger::after {
+      content: '';
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid var(--muted);
+      transition: transform 0.2s;
+    }
+
+    .custom-dropdown.open .custom-dropdown-trigger::after {
+      transform: translateY(-50%) rotate(180deg);
+    }
+
+    .custom-dropdown-trigger .trigger-placeholder {
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .custom-dropdown-trigger .trigger-night {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 400;
+      line-height: 1.2;
+    }
+
+    .custom-dropdown-trigger .trigger-name {
+      display: block;
+      font-weight: 700;
+      font-size: 0.9375rem;
+      line-height: 1.3;
+    }
+
+    .custom-dropdown-panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      max-height: 320px;
+      overflow-y: auto;
+      z-index: 100;
+      padding: 4px 0;
+    }
+
+    .custom-dropdown.open .custom-dropdown-panel {
+      display: block;
+    }
+
+    .custom-dropdown-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .custom-dropdown-item:hover {
+      background: var(--bg);
+    }
+
+    .custom-dropdown-item.selected {
+      background: rgba(0, 49, 161, 0.08);
+    }
+
+    .custom-dropdown-item .item-night {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.2;
+    }
+
+    .custom-dropdown-item .item-name {
+      font-weight: 700;
+      font-size: 0.9375rem;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .custom-dropdown-separator {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 12px;
     }
 
     /* -- Status text ----------------------------------------------------- */
@@ -400,6 +525,78 @@
       color: var(--spm-accent);
     }
 
+    /* -- Division info card: team count badge ----------------------------- */
+    .division-info-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .team-count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
+      color: #fff;
+      font-size: 1.25rem;
+      font-weight: 900;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    }
+
+    .division-info-text {
+      font-weight: 700;
+      font-size: 1.0625rem;
+    }
+
+    /* -- Tri-Annual qualifier lines -------------------------------------- */
+    .tri-line {
+      text-align: left;
+      padding: 8px 12px;
+      border-left: 4px solid #4caf50;
+      background: rgba(76, 175, 80, 0.06);
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 6px;
+    }
+
+    /* -- Playoff lines --------------------------------------------------- */
+    .playoff-line {
+      text-align: left;
+      padding: 8px 12px;
+      border-left: 4px solid #ff9800;
+      background: rgba(255, 152, 0, 0.06);
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 6px;
+    }
+
+    /* -- Position circles ------------------------------------------------ */
+    .pos-circle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #fff;
+      margin-right: 8px;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .pos-circle-green {
+      background: #4caf50;
+    }
+
+    .pos-circle-amber {
+      background: #ff9800;
+    }
+
     /* -- Footer note ----------------------------------------------------- */
     .footer-note {
       text-align: center;
@@ -449,11 +646,15 @@
       .player-results {
         max-width: 560px;
       }
+
+      .custom-dropdown {
+        max-width: 560px;
+      }
     }
 
     /* -- Hover states (non-touch devices only) --------------------------- */
     @media (hover: hover) {
-      .division-select:hover {
+      .custom-dropdown-trigger:hover {
         border-color: var(--spm-accent);
       }
 
@@ -480,19 +681,21 @@
   <header>
     <h1 class="header-title">FinalStandings</h1>
     <div class="header-subtitle">Tri-Annuals &amp; Playoffs</div>
-    <div class="session-text" id="sessionText"></div>
+    <select class="session-select" id="sessionSelect" aria-label="Current session">
+      <option value="" disabled selected>Loading...</option>
+    </select>
   </header>
 
-  <!-- ── Summary Banner ──────────────────────────────────────────── -->
-  <div id="summaryBanner" style="display:none;max-width:560px;margin:0 auto 16px;padding:12px 20px;background:#fff;border-radius:22px;box-shadow:0 3px 10px rgba(0,0,0,0.12);text-align:center;">
-    <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">
+  <!-- ── Summary Banner (gradient pill) ────────────────────────────── -->
+  <div id="summaryBanner" style="display:none;max-width:560px;margin:0 auto 16px;padding:16px 24px;background:linear-gradient(135deg, var(--spm-primary), var(--spm-accent));border-radius:999px;box-shadow:0 3px 10px rgba(0,0,0,0.12);text-align:center;color:#fff;">
+    <div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;">
       <div>
-        <span style="font-size:1.5rem;font-weight:900;color:var(--spm-primary);" id="summary8count">—</span>
-        <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">8-Ball Advancing</div>
+        <span style="font-size:1.75rem;font-weight:900;" id="summary8count">&mdash;</span>
+        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.9;">8-Ball Teams</div>
       </div>
       <div>
-        <span style="font-size:1.5rem;font-weight:900;color:var(--spm-accent);" id="summary9count">—</span>
-        <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">9-Ball Advancing</div>
+        <span style="font-size:1.75rem;font-weight:900;" id="summary9count">&mdash;</span>
+        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.9;">9-Ball Teams</div>
       </div>
     </div>
   </div>
@@ -521,9 +724,17 @@
 
   <!-- ── Division dropdown ───────────────────────────────────────────── -->
   <div class="selector-wrap">
+    <!-- Hidden native select kept for programmatic compatibility -->
     <select class="division-select" id="divisionSelect" aria-label="Select a division">
       <option value="" disabled selected>Select a division...</option>
     </select>
+    <!-- Custom two-line dropdown -->
+    <div class="custom-dropdown" id="customDropdown">
+      <button type="button" class="custom-dropdown-trigger" id="customDropdownTrigger">
+        <span class="trigger-placeholder">Select a division...</span>
+      </button>
+      <div class="custom-dropdown-panel" id="customDropdownPanel"></div>
+    </div>
   </div>
 
   <!-- ── Status ──────────────────────────────────────────────────────── -->
@@ -650,6 +861,13 @@
   }
 
 
+  // ── extractPositionNumber — Pull ordinal from a line like "1st place → ..."
+  function extractPositionNumber(line) {
+    var m = line.match(/^(\d+)(?:st|nd|rd|th)/i);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+
   // ── renderResults — Display advancement info from API response ────────
 
   function renderResults(data) {
@@ -685,26 +903,35 @@
 
     // Division details — base name only (DJ pairs share the same teams)
     var baseName = stripFormatSuffix(data.divisionName || '');
+    var numTeams = escapeHtml(data.numTeams);
 
-    divBox.innerHTML = '<div style="font-weight:700;font-size:1.0625rem;">' + escapeHtml(baseName) + ' — ' + escapeHtml(data.numTeams) + ' teams</div>';
+    divBox.innerHTML =
+      '<div class="division-info-row">' +
+        '<div class="team-count-badge">' + numTeams + '</div>' +
+        '<div class="division-info-text">' + escapeHtml(baseName) + '<br><span style="font-weight:400;font-size:0.875rem;color:var(--muted);">' + numTeams + ' teams</span></div>' +
+      '</div>';
 
-    // Tri-annual qualifiers
+    // Tri-annual qualifiers — with green left border and position circles
+    var triLines = (data.triAnnualLines || []).map(function(l) {
+      var pos = extractPositionNumber(l);
+      var circle = pos ? '<span class="pos-circle pos-circle-green">' + pos + '</span>' : '';
+      return '<div class="tri-line">' + circle + escapeHtml(l) + '</div>';
+    }).join('');
+
     triBox.innerHTML =
-      '<h2>Tri-Annual Qualifiers</h2>' +
-      '<div class="detail">' +
-        (data.triAnnualLines || []).map(function(l) {
-          return '<div>' + escapeHtml(l) + '</div>';
-        }).join('') +
-      '</div>';
+      '<h2>\uD83C\uDFC6 Tri-Annual Qualifiers</h2>' +
+      '<div class="detail">' + triLines + '</div>';
 
-    // Playoff matchups
+    // Playoff matchups — with amber left border and position circles
+    var playoffLines = (data.playoffLines || []).map(function(l) {
+      var pos = extractPositionNumber(l);
+      var circle = pos ? '<span class="pos-circle pos-circle-amber">' + pos + '</span>' : '';
+      return '<div class="playoff-line">' + circle + escapeHtml(l) + '</div>';
+    }).join('');
+
     playoffBox.innerHTML =
-      '<h2>Division Playoffs</h2>' +
-      '<div class="detail">' +
-        (data.playoffLines || []).map(function(l) {
-          return '<div>' + escapeHtml(l) + '</div>';
-        }).join('') +
-      '</div>';
+      '<h2>\u2694\uFE0F Division Playoffs</h2>' +
+      '<div class="detail">' + playoffLines + '</div>';
 
     // Post-process to bold ordinals and "wildcard"
     boldOrdinalsAndWildcard(triBox);
@@ -727,13 +954,15 @@
 
   // ── populateDropdown — Build division selector from initial data ───────
   // Groups rows by division name (DJ pairs share the same name).
-  // Builds aligned labels: "(Monday)  10/12  West Hills  (Hillsboro)"
 
   // Strip "8 Ball", "9 Ball", "8-Ball", "9-Ball" suffix to get base division name.
   // "West Hills 8 Ball" → "West Hills", "Southeast 9-Ball" → "Southeast"
   function stripFormatSuffix(name) {
     return name.replace(/\s*(8|9)[\s-]?Ball$/i, '').trim();
   }
+
+  // Store parsed options globally for custom dropdown and player pills
+  var _dropdownOptions = [];
 
   function populateDropdown(divisionRows) {
     var selectEl = document.getElementById('divisionSelect');
@@ -795,7 +1024,10 @@
       return a.sortKey - b.sortKey;
     });
 
-    // Build labels — just base name and night
+    // Store globally
+    _dropdownOptions = options;
+
+    // Build native select options (hidden, for programmatic use)
     options.forEach(function(o) {
       var label = o.baseName;
       if (o.nightText) label += ' — ' + o.nightText.replace(/[()]/g, '');
@@ -805,6 +1037,114 @@
       opt.textContent = label;
       selectEl.appendChild(opt);
     });
+
+    // Build custom dropdown panel
+    buildCustomDropdownPanel(options);
+  }
+
+
+  // ── Custom dropdown panel builder ────────────────────────────────────
+  function buildCustomDropdownPanel(options) {
+    var panel = document.getElementById('customDropdownPanel');
+    panel.innerHTML = '';
+
+    var lastNight = null;
+    for (var i = 0; i < options.length; i++) {
+      var o = options[i];
+      var night = o.nightText.replace(/[()]/g, '') || '';
+
+      // Add separator between night groups
+      if (lastNight !== null && night !== lastNight) {
+        var sep = document.createElement('div');
+        sep.className = 'custom-dropdown-separator';
+        panel.appendChild(sep);
+      }
+      lastNight = night;
+
+      var item = document.createElement('div');
+      item.className = 'custom-dropdown-item';
+      item.setAttribute('data-value', o.key);
+      item.setAttribute('data-night', night);
+      item.setAttribute('data-basename', o.baseName);
+      item.innerHTML =
+        (night ? '<div class="item-night">' + escapeHtml(night) + '</div>' : '') +
+        '<div class="item-name">' + escapeHtml(o.baseName) + '</div>';
+
+      item.addEventListener('click', (function(key, baseName, nightLabel) {
+        return function() {
+          selectCustomDropdownItem(key, baseName, nightLabel);
+        };
+      })(o.key, o.baseName, night));
+
+      panel.appendChild(item);
+    }
+  }
+
+  // ── Select a custom dropdown item ─────────────────────────────────────
+  function selectCustomDropdownItem(key, baseName, night) {
+    var trigger = document.getElementById('customDropdownTrigger');
+    trigger.innerHTML =
+      (night ? '<span class="trigger-night">' + escapeHtml(night) + '</span>' : '') +
+      '<span class="trigger-name">' + escapeHtml(baseName) + '</span>';
+
+    // Mark selected
+    var panel = document.getElementById('customDropdownPanel');
+    var items = panel.querySelectorAll('.custom-dropdown-item');
+    items.forEach(function(it) {
+      it.classList.toggle('selected', it.getAttribute('data-value') === key);
+    });
+
+    // Close dropdown
+    document.getElementById('customDropdown').classList.remove('open');
+
+    // Sync native select and fire change
+    var selectEl = document.getElementById('divisionSelect');
+    for (var i = 0; i < selectEl.options.length; i++) {
+      if (selectEl.options[i].value === key) {
+        selectEl.selectedIndex = i;
+        selectEl.dispatchEvent(new Event('change'));
+        break;
+      }
+    }
+  }
+
+  // ── Custom dropdown open/close logic ──────────────────────────────────
+  document.addEventListener('click', function(e) {
+    var dropdown = document.getElementById('customDropdown');
+    var trigger = document.getElementById('customDropdownTrigger');
+
+    if (trigger && trigger.contains(e.target)) {
+      dropdown.classList.toggle('open');
+      e.stopPropagation();
+    } else if (dropdown && !dropdown.contains(e.target)) {
+      dropdown.classList.remove('open');
+    }
+  });
+
+  // ── Sync custom dropdown when native select changes programmatically ──
+  function syncCustomDropdownToNative() {
+    var selectEl = document.getElementById('divisionSelect');
+    var val = selectEl.value;
+    if (!val) return;
+
+    // Find matching option data
+    for (var i = 0; i < _dropdownOptions.length; i++) {
+      var o = _dropdownOptions[i];
+      if (o.key === val) {
+        var night = o.nightText.replace(/[()]/g, '') || '';
+        var trigger = document.getElementById('customDropdownTrigger');
+        trigger.innerHTML =
+          (night ? '<span class="trigger-night">' + escapeHtml(night) + '</span>' : '') +
+          '<span class="trigger-name">' + escapeHtml(o.baseName) + '</span>';
+
+        // Mark selected in panel
+        var items = document.getElementById('customDropdownPanel').querySelectorAll('.custom-dropdown-item');
+        items.forEach(function(it) {
+          it.classList.toggle('selected', it.getAttribute('data-value') === val);
+        });
+        break;
+      }
+    }
   }
 
 
@@ -818,9 +1158,11 @@
     for (var i = 0; i < options.length; i++) {
       if (options[i].value === divisionName) {
         selectEl.selectedIndex = i;
+        // Sync custom dropdown display
+        syncCustomDropdownToNative();
         selectEl.dispatchEvent(new Event('change'));
         // Scroll the dropdown into view so results are visible
-        selectEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        document.getElementById('customDropdown').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
       }
     }
@@ -911,15 +1253,17 @@
       return;
     }
 
-    // ── Build pill buttons for player's divisions ──
+    // ── Build pill buttons — show team name only ──
     var html = '<div class="player-name">' + escapeHtml(fullName) + '</div>';
     html += '<div class="player-pills">';
 
     for (var d = 0; d < divNames.length; d++) {
       var bn = divNames[d];
-      var nightLabel = baseToNight[bn] ? ' <span class="pill-night">' + escapeHtml(baseToNight[bn]) + '</span>' : '';
+      // Show team name(s) instead of division name + night
+      var teamNames = baseToTeams[bn] || [];
+      var pillLabel = teamNames.length > 0 ? teamNames.join(' / ') : bn;
       html += '<button class="player-pill" data-div="' + escapeHtml(baseToFullName[bn]) + '">';
-      html += escapeHtml(bn) + nightLabel;
+      html += escapeHtml(pillLabel);
       html += '</button>';
     }
 
@@ -1081,9 +1425,15 @@
     try {
       var data = await callServer('getInitialData');
 
-      // Session title
+      // Session dropdown
       if (data && data.sessionTitle) {
-        document.getElementById('sessionText').textContent = 'Current Session: ' + data.sessionTitle;
+        var sessionSelect = document.getElementById('sessionSelect');
+        sessionSelect.innerHTML = '';
+        var opt = document.createElement('option');
+        opt.value = data.sessionTitle;
+        opt.textContent = data.sessionTitle;
+        opt.selected = true;
+        sessionSelect.appendChild(opt);
       }
 
       // Division dropdown
