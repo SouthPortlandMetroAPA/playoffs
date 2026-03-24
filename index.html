@@ -458,10 +458,6 @@
         <span style="font-size:1.5rem;font-weight:900;color:var(--spm-accent);" id="summary9count">—</span>
         <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">9-Ball Teams</div>
       </div>
-      <div>
-        <span style="font-size:1.5rem;font-weight:900;color:#333;" id="summaryTotal">—</span>
-        <div style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Total to Tri-Annuals</div>
-      </div>
     </div>
   </div>
 
@@ -754,8 +750,15 @@
       });
     });
 
-    // Sort by first division number (ascending)
-    options.sort(function(a, b) { return a.sortKey - b.sortKey; });
+    // Sort by night of play (day order), then by division number within each day
+    var dayOrder = { 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 7, '': 8 };
+    options.sort(function(a, b) {
+      var aNight = a.nightText.replace(/[()]/g, '');
+      var bNight = b.nightText.replace(/[()]/g, '');
+      var dayDiff = (dayOrder[aNight] || 8) - (dayOrder[bNight] || 8);
+      if (dayDiff !== 0) return dayDiff;
+      return a.sortKey - b.sortKey;
+    });
 
     // Compute max column widths for aligned monospace display
     var maxNightLen = 0;
@@ -1041,7 +1044,7 @@
       if (data && data.summary) {
         document.getElementById('summary8count').textContent = data.summary.eightBallTeamsAdvancing;
         document.getElementById('summary9count').textContent = data.summary.nineBallTeamsAdvancing;
-        document.getElementById('summaryTotal').textContent = data.summary.totalTeamsAdvancing;
+        // Total removed — 8-Ball and 9-Ball are separate tri-annuals
         document.getElementById('summaryBanner').style.display = 'block';
       }
     } catch (e) {
