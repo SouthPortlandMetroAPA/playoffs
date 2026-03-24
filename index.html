@@ -816,7 +816,22 @@
       return;
     }
 
-    // ── Build the set of division names available in the dropdown ──
+    // ── Player name ──
+    var player = data.player || {};
+    var fullName = (player.firstName || '') + ' ' + (player.lastName || '');
+    fullName = fullName.trim() || 'Player';
+
+    // ── Deduplicate divisions across teams ──
+    // DJ divisions have separate 8-Ball and 9-Ball entries with the same
+    // base name (e.g., "West Hills 8 Ball" / "West Hills 9 Ball").
+    // We want unique division names that match the main dropdown options.
+    // Also collect team names per division for display.
+    var teams = data.teams || [];
+    var divSet = {};       // divisionName → true (dedup)
+    var divTeams = {};     // divisionName → [teamName, ...]
+    var divNight = {};     // divisionName → nightOfPlay
+
+    // Build set of division names in the main dropdown for matching
     var selectEl = document.getElementById('divisionSelect');
     var dropdownNames = {};
     for (var i = 0; i < selectEl.options.length; i++) {
@@ -824,59 +839,62 @@
       if (val) dropdownNames[val] = true;
     }
 
-    // ── Player name header ──
-    var player = data.player || {};
-    var fullName = (player.firstName || '') + ' ' + (player.lastName || '');
-    fullName = fullName.trim() || 'Player';
-
-    var html = '<div class="player-name">' + escapeHtml(fullName) + '</div>';
-
-    // ── Team cards ──
-    var teams = data.teams || [];
     for (var t = 0; t < teams.length; t++) {
       var team = teams[t];
       var divName = team.divisionName || '';
-      var isClickable = divName && dropdownNames[divName];
-
-      html += '<div class="player-card">';
-      html += '<div class="team-name">' + escapeHtml(team.teamName || 'Team ' + team.teamNumber) + '</div>';
-      html += '<div class="team-detail">';
-      html += 'Team #' + escapeHtml(team.teamNumber);
-      if (team.role) {
-        html += ' &middot; ' + escapeHtml(team.role);
+      if (!divName || !dropdownNames[divName]) continue;
+      if (!divSet[divName]) {
+        divSet[divName] = true;
+        divTeams[divName] = [];
+        divNight[divName] = team.nightOfPlay || '';
       }
-      html += '</div>';
-
-      // Division line — clickable if it matches a dropdown option
-      if (divName) {
-        html += '<div class="team-detail">';
-        if (isClickable) {
-          html += '<span class="division-link" data-division="' + escapeHtml(divName) + '">'
-            + escapeHtml(divName)
-            + '</span>';
-        } else {
-          html += escapeHtml(divName);
-        }
-        if (team.nightOfPlay) {
-          html += ' &middot; ' + escapeHtml(team.nightOfPlay);
-        }
-        html += '</div>';
+      var teamLabel = team.teamName || ('Team ' + team.teamNumber);
+      if (divTeams[divName].indexOf(teamLabel) === -1) {
+        divTeams[divName].push(teamLabel);
       }
-
-      html += '</div>';
     }
+
+    var divNames = Object.keys(divSet).sort();
+
+    if (divNames.length === 0) {
+      container.style.display = 'none';
+      statusEl.textContent = fullName + ' — no 8-Ball or 9-Ball team divisions found.';
+      return;
+    }
+
+    // ── Build dropdown of player's divisions ──
+    var html = '<div class="player-name">' + escapeHtml(fullName) + '</div>';
+
+    html += '<div style="margin-top:8px;">';
+    html += '<label style="font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">Your Divisions</label>';
+    html += '<select id="playerDivSelect" style="width:100%;padding:12px 16px;border:1px solid var(--border);border-radius:12px;font-size:1rem;background:#fff;margin-top:4px;cursor:pointer;">';
+    html += '<option value="">Select a division...</option>';
+
+    for (var d = 0; d < divNames.length; d++) {
+      var dn = divNames[d];
+      var label = dn;
+      if (divNight[dn]) label += ' — ' + divNight[dn];
+      label += ' (' + divTeams[dn].join(', ') + ')';
+      html += '<option value="' + escapeHtml(dn) + '">' + escapeHtml(label) + '</option>';
+    }
+
+    html += '</select>';
+    html += '</div>';
 
     container.innerHTML = html;
     container.style.display = 'block';
     statusEl.textContent = '';
 
-    // ── Attach click handlers to division links ──
-    var links = container.querySelectorAll('.division-link');
-    links.forEach(function(link) {
-      link.addEventListener('click', function() {
-        var divName = this.getAttribute('data-division');
-        if (divName) selectDivisionByName(divName);
-      });
+    // ── Auto-select if only one division ──
+    if (divNames.length === 1) {
+      document.getElementById('playerDivSelect').value = divNames[0];
+      selectDivisionByName(divNames[0]);
+    }
+
+    // ── Attach change handler to player division dropdown ──
+    document.getElementById('playerDivSelect').addEventListener('change', function() {
+      var divName = this.value;
+      if (divName) selectDivisionByName(divName);
     });
   }
 
