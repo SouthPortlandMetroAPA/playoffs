@@ -705,11 +705,18 @@
   // Groups rows by division name (DJ pairs share the same name).
   // Builds aligned labels: "(Monday)  10/12  West Hills  (Hillsboro)"
 
+  // Strip "8 Ball", "9 Ball", "8-Ball", "9-Ball" suffix to get base division name.
+  // "West Hills 8 Ball" → "West Hills", "Southeast 9-Ball" → "Southeast"
+  function stripFormatSuffix(name) {
+    return name.replace(/\s*(8|9)[\s-]?Ball$/i, '').trim();
+  }
+
   function populateDropdown(divisionRows) {
     var selectEl = document.getElementById('divisionSelect');
 
-    // Group by division name → { nums:[], night:'', area:'' }
-    var nameToInfo = {};
+    // Group by BASE division name (strip 8/9 Ball suffix).
+    // "West Hills 8 Ball" and "West Hills 9 Ball" collapse to "West Hills".
+    var baseToInfo = {};
 
     divisionRows.forEach(function(row) {
       var name  = (row.divisionName || '').trim();
@@ -718,39 +725,43 @@
       var area  = (row.area || '').trim();
       if (!name || !num) return;
 
-      if (!nameToInfo[name]) {
-        nameToInfo[name] = { nums: [], night: night, area: area };
-      }
-      nameToInfo[name].nums.push(num);
+      var baseName = stripFormatSuffix(name);
 
-      // Fill in missing metadata from other rows in the same group
-      if (!nameToInfo[name].night && night) nameToInfo[name].night = night;
-      if (!nameToInfo[name].area && area) nameToInfo[name].area = area;
+      if (!baseToInfo[baseName]) {
+        baseToInfo[baseName] = { nums: [], night: night, area: area, fullNames: [] };
+      }
+      baseToInfo[baseName].nums.push(num);
+      if (baseToInfo[baseName].fullNames.indexOf(name) === -1) {
+        baseToInfo[baseName].fullNames.push(name);
+      }
+
+      if (!baseToInfo[baseName].night && night) baseToInfo[baseName].night = night;
+      if (!baseToInfo[baseName].area && area) baseToInfo[baseName].area = area;
     });
 
     // Build option objects with sort keys
     var options = [];
-    Object.keys(nameToInfo).forEach(function(name) {
-      var info = nameToInfo[name];
+    Object.keys(baseToInfo).forEach(function(baseName) {
+      var info = baseToInfo[baseName];
       var numsArr = info.nums.slice();
       numsArr.sort(function(a, b) {
         return (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0);
       });
 
-      var numsDisplay = numsArr.join('/');
       var nightText = info.night ? '(' + info.night + ')' : '';
 
       options.push({
-        key: name,           // Value sent to lookupDivisionInfo
+        // Use the first full name as the key for lookupDivisionInfo —
+        // the backend matches on exact division name and handles DJ pairs
+        key: info.fullNames[0],
         nightText: nightText,
-        numsDisplay: numsDisplay,
-        name: name,
+        baseName: baseName,
         area: info.area || '',
         sortKey: parseInt(numsArr[0], 10) || 0
       });
     });
 
-    // Sort by night of play (day order), then by division number within each day
+    // Sort by night of play (day order), then by division number
     var dayOrder = { 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 7, '': 8 };
     options.sort(function(a, b) {
       var aNight = a.nightText.replace(/[()]/g, '');
@@ -760,28 +771,10 @@
       return a.sortKey - b.sortKey;
     });
 
-    // Compute max column widths for aligned monospace display
-    var maxNightLen = 0;
-    var maxNumsLen  = 0;
-    var maxNameLen  = 0;
-
+    // Build labels — just base name and night
     options.forEach(function(o) {
-      if (o.nightText.length > maxNightLen) maxNightLen = o.nightText.length;
-      if (o.numsDisplay.length > maxNumsLen) maxNumsLen = o.numsDisplay.length;
-      if (o.name.length > maxNameLen) maxNameLen = o.name.length;
-    });
-
-    // Build padded labels, populate dropdown
-    var sep = '\u00A0\u00A0'; // Double NBSP between columns
-    options.forEach(function(o) {
-      var paddedNight = rightPad(o.nightText, maxNightLen);
-      var paddedNums  = rightPad(o.numsDisplay, maxNumsLen);
-      var paddedName  = rightPad(o.name, maxNameLen);
-
-      var label = paddedNight + sep + paddedNums + sep + paddedName;
-      if (o.area) {
-        label += sep + '(' + o.area + ')';
-      }
+      var label = o.baseName;
+      if (o.nightText) label += ' — ' + o.nightText.replace(/[()]/g, '');
 
       var opt = document.createElement('option');
       opt.value = o.key;
@@ -858,25 +851,32 @@
       if (val) dropdownNames[val] = true;
     }
 
+    // Group by BASE name (strip 8/9 Ball suffix) — collapse DJ pairs
+    var baseToTeams = {};   // baseName → [teamName, ...]
+    var baseToNight = {};   // baseName → nightOfPlay
+    var baseToFullName = {}; // baseName → first full division name (for dropdown value)
+
     for (var t = 0; t < teams.length; t++) {
       var team = teams[t];
       var divName = team.divisionName || '';
       if (!divName || !dropdownNames[divName]) continue;
-      if (!divSet[divName]) {
-        divSet[divName] = true;
-        divTeams[divName] = [];
-        divNight[divName] = team.nightOfPlay || '';
+
+      var baseName = stripFormatSuffix(divName);
+      if (!baseToTeams[baseName]) {
+        baseToTeams[baseName] = [];
+        baseToNight[baseName] = team.nightOfPlay || '';
+        baseToFullName[baseName] = divName;
       }
       var teamLabel = team.teamName || ('Team ' + team.teamNumber);
-      if (divTeams[divName].indexOf(teamLabel) === -1) {
-        divTeams[divName].push(teamLabel);
+      if (baseToTeams[baseName].indexOf(teamLabel) === -1) {
+        baseToTeams[baseName].push(teamLabel);
       }
     }
 
-    // Sort by night of play (day order), then alphabetical by name
+    // Sort by night of play (day order), then alphabetical
     var dayOrder = { 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 7, '': 8 };
-    var divNames = Object.keys(divSet).sort(function(a, b) {
-      var dayDiff = (dayOrder[divNight[a]] || 8) - (dayOrder[divNight[b]] || 8);
+    var divNames = Object.keys(baseToTeams).sort(function(a, b) {
+      var dayDiff = (dayOrder[baseToNight[a]] || 8) - (dayOrder[baseToNight[b]] || 8);
       if (dayDiff !== 0) return dayDiff;
       return a.localeCompare(b);
     });
@@ -896,11 +896,12 @@
     html += '<option value="">Select a division...</option>';
 
     for (var d = 0; d < divNames.length; d++) {
-      var dn = divNames[d];
-      var label = dn;
-      if (divNight[dn]) label += ' — ' + divNight[dn];
-      label += ' (' + divTeams[dn].join(', ') + ')';
-      html += '<option value="' + escapeHtml(dn) + '">' + escapeHtml(label) + '</option>';
+      var baseName = divNames[d];
+      var label = baseName;
+      if (baseToNight[baseName]) label += ' — ' + baseToNight[baseName];
+      label += ' (' + baseToTeams[baseName].join(', ') + ')';
+      // Value = first full division name (e.g., "West Hills 8 Ball") for lookupDivisionInfo
+      html += '<option value="' + escapeHtml(baseToFullName[baseName]) + '">' + escapeHtml(label) + '</option>';
     }
 
     html += '</select>';
