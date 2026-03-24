@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!--
+  ============================================================================
+  FinalStandings — index.html (Standalone / GitHub Pages)
+  ============================================================================
+
+  PURPOSE:
+    APA team advancement calculator. Players select their Double Jeopardy
+    division from a dropdown and see tri-annual qualifiers, playoff bracket
+    structure, and division size.
+
+    Read-only viewer — no login, no write operations.
+
+  ARCHITECTURE:
+    Standalone build (go-forward stack). All CSS and JS are inline in this
+    single HTML file.
+
+    Frontend: GitHub Pages (southportlandmetroapa.github.io/finalstandings/)
+        ↓ fetch() POST (Content-Type: text/plain, redirect: follow)
+    CORS Proxy: Cloudflare Worker (finalstandings.spmapa.workers.dev)
+        ↓ forward POST
+    Backend: GAS doPost (Api.js → Code.js)
+        ↓
+    Data: Google Sheets (Tri-Annual Calculator spreadsheet)
+
+    Content-Type: text/plain avoids CORS preflight on most browsers.
+    redirect: 'follow' handles GAS's 302 redirect after doPost.
+
+  MAINTENANCE MODE:
+    On load, calls getMaintenanceMode. If enabled and the URL lacks a
+    matching ?key= bypass parameter, the page replaces its body with a
+    maintenance message. Fails open (if the check errors, the page loads
+    normally — never blocks users due to a backend hiccup).
+
+  ============================================================================
+  -->
+  <title>Final Standings — South Portland Metro APA</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* ======================================================================
+       CSS — Branding & Layout
+       ======================================================================
+       16px base font (standalone app — no GAS iframe scaling).
+       CSS @media queries for responsive layout.
+       4px spacing grid. All values are multiples of 4.
+       ====================================================================== */
+
+    :root {
+      /* -- APA branding colors -- */
+      --spm-primary: #ea002a;
+      --spm-accent: #0031a1;
+
+      /* -- Neutral palette -- */
+      --bg: #f5f5f5;
+      --card: #ffffff;
+      --border: #e1e1e1;
+      --text: #1f1f1f;
+      --muted: #666;
+
+      /* -- Result box colors -- */
+      --ok-bg: #e8f5e9;
+      --ok-border: #a5d6a7;
+      --warn-bg: #fff8e1;
+      --warn-border: #ffe082;
+      --err-bg: #ffebee;
+      --err-border: #ef9a9a;
+    }
+
+    /* -- Reset ------------------------------------------------------------ */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* -- Base ------------------------------------------------------------ */
+    html, body {
+      width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      /* Hidden until maintenance check passes */
+      visibility: hidden;
+    }
+
+    /* -- Page wrapper ---------------------------------------------------- */
+    .page {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* -- Header ---------------------------------------------------------- */
+    header {
+      width: 100%;
+      border-radius: 12px;
+      padding: 24px 20px 20px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header-title {
+      font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+      font-weight: 900;
+      line-height: 1.1;
+      margin: 0;
+    }
+
+    .header-subtitle {
+      font-size: clamp(1rem, 0.85rem + 0.5vw, 1.25rem);
+      font-weight: 600;
+      opacity: 0.95;
+      margin-top: 4px;
+    }
+
+    .session-text {
+      font-size: 0.875rem;
+      opacity: 0.85;
+      margin-top: 8px;
+    }
+
+    /* -- Intro text ------------------------------------------------------ */
+    .lead {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 16px;
+      font-size: 0.9375rem;
+    }
+
+    /* -- Division selector ----------------------------------------------- */
+    .selector-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .division-select {
+      width: 100%;
+      max-width: 480px;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'Roboto Mono', 'Courier New', monospace;
+      font-size: 0.875rem;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      /* 48px min tap target via padding */
+      min-height: 48px;
+    }
+
+    .division-select:focus {
+      outline: 2px solid var(--spm-accent);
+      outline-offset: 2px;
+    }
+
+    /* -- Status text ----------------------------------------------------- */
+    .status {
+      text-align: center;
+      color: var(--muted);
+      min-height: 1.5em;
+      margin-bottom: 12px;
+      font-size: 0.9375rem;
+    }
+
+    /* -- Result cards ---------------------------------------------------- */
+    .results {
+      display: none;
+    }
+
+    .box {
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .box-ok {
+      background: var(--ok-bg);
+      border: 1px solid var(--ok-border);
+    }
+
+    .box-warn {
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+    }
+
+    .box-err {
+      background: var(--err-bg);
+      border: 1px solid var(--err-border);
+    }
+
+    .box h2 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .box .detail {
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    .box .detail div {
+      margin-bottom: 4px;
+    }
+
+    /* Bold ordinals and "wildcard" in playoff lines */
+    .box .detail strong {
+      font-weight: 700;
+      color: var(--spm-accent);
+    }
+
+    /* -- Footer note ----------------------------------------------------- */
+    .footer-note {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: none;
+    }
+
+    /* -- Loading skeleton ------------------------------------------------ */
+    .skeleton {
+      display: none;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .skeleton-pill {
+      display: inline-block;
+      width: 200px;
+      height: 20px;
+      background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+      background-size: 200% 100%;
+      border-radius: 4px;
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* -- Responsive: tablet+ gets wider cards ---------------------------- */
+    @media (min-width: 768px) {
+      .page {
+        max-width: 700px;
+        padding: 24px;
+      }
+
+      .box {
+        padding: 20px 24px;
+      }
+    }
+
+    /* -- Hover states (non-touch devices only) --------------------------- */
+    @media (hover: hover) {
+      .division-select:hover {
+        border-color: var(--spm-accent);
+      }
+    }
+  </style>
+</head>
+
+<body>
+<div class="page">
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header>
+    <h1 class="header-title">South Portland Metro APA</h1>
+    <div class="header-subtitle">Tri-Annuals &amp; Playoffs</div>
+    <div class="session-text" id="sessionText"></div>
+  </header>
+
+  <!-- ── Intro ───────────────────────────────────────────────────────── -->
+  <p class="lead">Select your Double Jeopardy division to see advancement details.</p>
+
+  <!-- ── Division dropdown ───────────────────────────────────────────── -->
+  <div class="selector-wrap">
+    <select class="division-select" id="divisionSelect" aria-label="Select a division">
+      <option value="" disabled selected>Select a division...</option>
+    </select>
+  </div>
+
+  <!-- ── Status ──────────────────────────────────────────────────────── -->
+  <div class="status" id="status"></div>
+
+  <!-- ── Loading skeleton ────────────────────────────────────────────── -->
+  <div class="skeleton" id="skeleton">
+    <div class="skeleton-pill"></div>
+  </div>
+
+  <!-- ── Results ─────────────────────────────────────────────────────── -->
+  <div class="results" id="results">
+    <div class="box box-ok" id="divisionBox"></div>
+    <div class="box box-ok" id="triBox"></div>
+    <div class="box box-ok" id="playoffBox"></div>
+    <div class="box box-warn" id="warningBox" style="display:none;"></div>
+    <div class="box box-err" id="errorBox" style="display:none;"></div>
+  </div>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────── -->
+  <div class="footer-note" id="footerNote">
+    Results are based on current division standings configuration.
+  </div>
+
+</div>
+
+<script>
+  // ======================================================================
+  // JavaScript — FinalStandings standalone frontend
+  // ======================================================================
+  //
+  // Flow:
+  //   1. DOMContentLoaded → maintenance mode check
+  //   2. If maintenance passes → fetch initial data (session + divisions)
+  //   3. Populate dropdown (grouped by division name, sorted by number)
+  //   4. On dropdown change → fetch advancement info → render result cards
+  //
+  // All API calls go through callServer() which handles:
+  //   - Content-Type: text/plain (avoids CORS preflight)
+  //   - redirect: 'follow' (handles GAS 302)
+  //   - JSON parse + error handling
+  // ======================================================================
+
+  var API_URL = 'https://finalstandings.spmapa.workers.dev';
+
+  // ── callServer — Generic API caller ───────────────────────────────────
+  // Sends a POST to the Cloudflare Worker with { action, ...params }.
+  // Returns parsed JSON response or throws on network/parse error.
+  //
+  // Uses Content-Type: text/plain to avoid CORS preflight (the worker
+  // accepts any content type and forwards as JSON to GAS).
+
+  function callServer(action, params) {
+    var body = Object.assign({ action: action }, params || {});
+    return fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body),
+      redirect: 'follow'
+    }).then(function(response) {
+      if (!response.ok) {
+        throw new Error('Server returned ' + response.status);
+      }
+      return response.json();
+    });
+  }
+
+
+  // ── escapeHtml — Prevent XSS in rendered content ──────────────────────
+
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(s)));
+    return d.innerHTML;
+  }
+
+
+  // ── rightPad — Pad string with non-breaking spaces ────────────────────
+  // Uses NBSP (\u00A0) so browsers don't collapse whitespace in <option>.
+
+  function rightPad(str, targetLen) {
+    str = String(str);
+    while (str.length < targetLen) {
+      str = str + '\u00A0';
+    }
+    return str;
+  }
+
+
+  // ── boldOrdinalsAndWildcard — Post-process lines for emphasis ─────────
+  // Wraps ordinal numbers ("1st", "2nd", etc.) and "wildcard" in <strong>
+  // tags after rendering escaped text.
+
+  function boldOrdinalsAndWildcard(container) {
+    if (!container) return;
+    var divs = container.querySelectorAll('.detail div');
+    var ordinalRe = /\b(\d+(?:st|nd|rd|th))\b/g;
+    var wildcardRe = /\bwildcard\b/gi;
+    divs.forEach(function(div) {
+      var html = div.innerHTML;
+      html = html.replace(ordinalRe, '<strong>$1</strong>');
+      html = html.replace(wildcardRe, '<strong>$&</strong>');
+      div.innerHTML = html;
+    });
+  }
+
+
+  // ── clearResults — Reset result cards to hidden state ─────────────────
+
+  function clearResults() {
+    document.getElementById('results').style.display = 'none';
+    ['divisionBox', 'triBox', 'playoffBox', 'warningBox', 'errorBox'].forEach(function(id) {
+      var el = document.getElementById(id);
+      el.innerHTML = '';
+      if (id === 'warningBox' || id === 'errorBox') {
+        el.style.display = 'none';
+      } else {
+        el.style.display = '';
+      }
+    });
+    document.getElementById('footerNote').style.display = 'none';
+  }
+
+
+  // ── renderResults — Display advancement info from API response ────────
+
+  function renderResults(data) {
+    clearResults();
+
+    var results    = document.getElementById('results');
+    var divBox     = document.getElementById('divisionBox');
+    var triBox     = document.getElementById('triBox');
+    var playoffBox = document.getElementById('playoffBox');
+    var warnBox    = document.getElementById('warningBox');
+    var errBox     = document.getElementById('errorBox');
+
+    // ── Error response ──
+    if (!data || !data.success) {
+      var msg = data && data.message ? data.message : 'Unknown error.';
+      errBox.innerHTML = '<h2>Error</h2><div class="detail"><div>' + escapeHtml(msg) + '</div></div>';
+      errBox.style.display = '';
+      divBox.style.display = 'none';
+      triBox.style.display = 'none';
+      playoffBox.style.display = 'none';
+      warnBox.style.display = 'none';
+      results.style.display = 'block';
+      return;
+    }
+
+    // ── Success — show all result boxes ──
+    divBox.style.display = '';
+    triBox.style.display = '';
+    playoffBox.style.display = '';
+    errBox.style.display = 'none';
+    warnBox.style.display = 'none';
+    results.style.display = 'block';
+
+    // Division details: "10/12 West Hills (Double Jeopardy)"
+    var label = '';
+    if (data.divisionNumbersDisplay) {
+      label += data.divisionNumbersDisplay + ' ';
+    }
+    label += data.divisionName;
+
+    var divHtml = '<h2>Division Details</h2><div class="detail">';
+    divHtml += '<div>' + escapeHtml(label);
+    if (data.divisionFormatText) {
+      divHtml += ' (' + escapeHtml(data.divisionFormatText) + ')';
+    }
+    divHtml += '</div>';
+    divHtml += '<div>Teams in division: <strong>' + escapeHtml(data.numTeams) + '</strong></div>';
+    divHtml += '</div>';
+    divBox.innerHTML = divHtml;
+
+    // Tri-annual qualifiers
+    triBox.innerHTML =
+      '<h2>Tri-Annual Qualifiers</h2>' +
+      '<div class="detail">' +
+        (data.triAnnualLines || []).map(function(l) {
+          return '<div>' + escapeHtml(l) + '</div>';
+        }).join('') +
+      '</div>';
+
+    // Playoff matchups
+    playoffBox.innerHTML =
+      '<h2>Division Playoffs</h2>' +
+      '<div class="detail">' +
+        (data.playoffLines || []).map(function(l) {
+          return '<div>' + escapeHtml(l) + '</div>';
+        }).join('') +
+      '</div>';
+
+    // Post-process to bold ordinals and "wildcard"
+    boldOrdinalsAndWildcard(triBox);
+    boldOrdinalsAndWildcard(playoffBox);
+
+    // Warnings (e.g. DJ pair config mismatch)
+    if (data.warnings && data.warnings.length) {
+      warnBox.innerHTML =
+        '<h2>Warnings</h2><div class="detail">' +
+        data.warnings.map(function(w) {
+          return '<div>' + escapeHtml(w) + '</div>';
+        }).join('') +
+        '</div>';
+      warnBox.style.display = '';
+    }
+
+    document.getElementById('footerNote').style.display = 'block';
+  }
+
+
+  // ── populateDropdown — Build division selector from initial data ───────
+  // Groups rows by division name (DJ pairs share the same name).
+  // Builds aligned labels: "(Monday)  10/12  West Hills  (Hillsboro)"
+
+  function populateDropdown(divisionRows) {
+    var selectEl = document.getElementById('divisionSelect');
+
+    // Group by division name → { nums:[], night:'', area:'' }
+    var nameToInfo = {};
+
+    divisionRows.forEach(function(row) {
+      var name  = (row.divisionName || '').trim();
+      var num   = (row.divisionNumber || '').trim();
+      var night = (row.nightOfPlay || '').trim();
+      var area  = (row.area || '').trim();
+      if (!name || !num) return;
+
+      if (!nameToInfo[name]) {
+        nameToInfo[name] = { nums: [], night: night, area: area };
+      }
+      nameToInfo[name].nums.push(num);
+
+      // Fill in missing metadata from other rows in the same group
+      if (!nameToInfo[name].night && night) nameToInfo[name].night = night;
+      if (!nameToInfo[name].area && area) nameToInfo[name].area = area;
+    });
+
+    // Build option objects with sort keys
+    var options = [];
+    Object.keys(nameToInfo).forEach(function(name) {
+      var info = nameToInfo[name];
+      var numsArr = info.nums.slice();
+      numsArr.sort(function(a, b) {
+        return (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0);
+      });
+
+      var numsDisplay = numsArr.join('/');
+      var nightText = info.night ? '(' + info.night + ')' : '';
+
+      options.push({
+        key: name,           // Value sent to lookupDivisionInfo
+        nightText: nightText,
+        numsDisplay: numsDisplay,
+        name: name,
+        area: info.area || '',
+        sortKey: parseInt(numsArr[0], 10) || 0
+      });
+    });
+
+    // Sort by first division number (ascending)
+    options.sort(function(a, b) { return a.sortKey - b.sortKey; });
+
+    // Compute max column widths for aligned monospace display
+    var maxNightLen = 0;
+    var maxNumsLen  = 0;
+    var maxNameLen  = 0;
+
+    options.forEach(function(o) {
+      if (o.nightText.length > maxNightLen) maxNightLen = o.nightText.length;
+      if (o.numsDisplay.length > maxNumsLen) maxNumsLen = o.numsDisplay.length;
+      if (o.name.length > maxNameLen) maxNameLen = o.name.length;
+    });
+
+    // Build padded labels, populate dropdown
+    var sep = '\u00A0\u00A0'; // Double NBSP between columns
+    options.forEach(function(o) {
+      var paddedNight = rightPad(o.nightText, maxNightLen);
+      var paddedNums  = rightPad(o.numsDisplay, maxNumsLen);
+      var paddedName  = rightPad(o.name, maxNameLen);
+
+      var label = paddedNight + sep + paddedNums + sep + paddedName;
+      if (o.area) {
+        label += sep + '(' + o.area + ')';
+      }
+
+      var opt = document.createElement('option');
+      opt.value = o.key;
+      opt.textContent = label;
+      selectEl.appendChild(opt);
+    });
+  }
+
+
+  // ── Division select change handler ────────────────────────────────────
+
+  document.getElementById('divisionSelect').addEventListener('change', async function() {
+    clearResults();
+    var val = this.value;
+    var statusEl = document.getElementById('status');
+    var skeletonEl = document.getElementById('skeleton');
+
+    if (!val) {
+      statusEl.textContent = 'Please select a division.';
+      return;
+    }
+
+    statusEl.textContent = '';
+    skeletonEl.style.display = 'block';
+
+    try {
+      var data = await callServer('lookupDivisionInfo', { divisionNameKey: val });
+      skeletonEl.style.display = 'none';
+      statusEl.textContent = '';
+      renderResults(data);
+    } catch (err) {
+      skeletonEl.style.display = 'none';
+      statusEl.textContent = '';
+      renderResults({
+        success: false,
+        message: err.message || 'Failed to load division info. Please try again.'
+      });
+    }
+  });
+
+
+  // ── Page initialization ───────────────────────────────────────────────
+
+  document.addEventListener('DOMContentLoaded', async function() {
+
+    // ── Maintenance mode gate ──────────────────────────────────────────
+    // Same pattern as MultiPass standalone. Fails open — if the check
+    // errors out, the page loads normally (never blocks users).
+    try {
+      var maintResp = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action: 'getMaintenanceMode' }),
+        redirect: 'follow'
+      }).then(function(r) { return r.json(); });
+
+      if (maintResp.success && maintResp.enabled) {
+        var urlParams = new URLSearchParams(window.location.search);
+        var bypassKey = urlParams.get('key') || '';
+        if (bypassKey !== maintResp.bypassKey) {
+          // Show maintenance page and halt
+          document.body.innerHTML = '';
+          document.body.style.cssText = 'margin:0;padding:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100svh;font-family:system-ui,-apple-system,sans-serif;';
+          var box = document.createElement('div');
+          box.style.cssText = 'text-align:center;padding:48px 24px;max-width:500px;';
+          box.innerHTML = '<div style="font-size:48px;font-weight:900;color:#ea002a;line-height:1.1;margin-bottom:24px;">Final Standings</div>'
+            + '<div style="font-size:20px;font-weight:600;color:#0031a1;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:16px;">Under Maintenance</div>'
+            + '<div style="font-size:15px;color:#888;line-height:1.6;">We\'re making improvements.<br>Check back shortly.</div>';
+          document.body.appendChild(box);
+          document.body.style.visibility = 'visible';
+          return; // Stop all further initialization
+        }
+      }
+    } catch (e) {
+      // Fail open — don't block users if maintenance check fails
+    }
+
+    // ── Maintenance check passed — reveal the page ────────────────────
+    document.body.style.visibility = 'visible';
+
+    // ── Load initial data (session title + division roster) ───────────
+    try {
+      var data = await callServer('getInitialData');
+
+      // Session title
+      if (data && data.sessionTitle) {
+        document.getElementById('sessionText').textContent = 'Current Session: ' + data.sessionTitle;
+      }
+
+      // Division dropdown
+      if (data && Array.isArray(data.divisionRows)) {
+        populateDropdown(data.divisionRows);
+      }
+    } catch (e) {
+      document.getElementById('status').textContent = 'Failed to load divisions. Please refresh to try again.';
+    }
+  });
+</script>
+
+</body>
+</html>
