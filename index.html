@@ -618,6 +618,46 @@
       background: #ff9800;
     }
 
+    /* -- Result pills stack (team / division / count) -------------------- */
+    .result-pills-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-pill {
+      display: inline-block;
+      padding: 8px 24px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+      text-align: center;
+    }
+
+    /* Team name pill — red/blue gradient (matches brand) */
+    .result-pill-team {
+      background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
+      color: #fff;
+      font-size: 1.1rem;
+      padding: 10px 28px;
+      box-shadow: 0 3px 10px rgba(234, 0, 42, 0.2), 0 2px 6px rgba(0, 49, 161, 0.15);
+    }
+
+    /* Division name pill — warm charcoal (dark but not black, subtle warmth) */
+    .result-pill-division {
+      background: #3a3238;
+      color: #f0ece8;
+    }
+
+    /* Team count pill — earthy gold/amber */
+    .result-pill-count {
+      background: #b8860b;
+      color: #fff;
+      font-size: 0.9rem;
+    }
+
     /* -- Footer note ----------------------------------------------------- */
     .footer-note {
       text-align: center;
@@ -930,21 +970,22 @@
     var baseName = stripFormatSuffix(data.divisionName || '');
     var numTeams = escapeHtml(data.numTeams);
 
-    // Determine badge content: team name (from pill click) or team count (from dropdown)
-    var badgeContent;
-    var badgeClass = 'team-count-badge';
+    // Build stacked pills: team name (if from pill click), division name, team count
+    var pillsHtml = '<div class="result-pills-stack">';
+
+    // Pill 1: Team name (only if clicked from player pill — red/blue gradient)
     if (_clickedTeamName) {
-      badgeContent = escapeHtml(_clickedTeamName);
-      badgeClass = 'team-count-badge badge-team-name';
-    } else {
-      badgeContent = numTeams;
+      pillsHtml += '<div class="result-pill result-pill-team">' + escapeHtml(_clickedTeamName) + '</div>';
     }
 
-    divBox.innerHTML =
-      '<div class="division-info-row">' +
-        '<div class="' + badgeClass + '">' + badgeContent + '</div>' +
-        '<div class="division-info-text">' + escapeHtml(baseName) + ' Division<br><span style="font-weight:400;font-size:0.875rem;color:var(--muted);">' + numTeams + ' teams</span></div>' +
-      '</div>';
+    // Pill 2: Division name (warm dark tone — charcoal with subtle warmth)
+    pillsHtml += '<div class="result-pill result-pill-division">' + escapeHtml(baseName) + ' Division</div>';
+
+    // Pill 3: Team count (earthy gold/amber tone)
+    pillsHtml += '<div class="result-pill result-pill-count">' + numTeams + ' Teams</div>';
+
+    pillsHtml += '</div>';
+    divBox.innerHTML = pillsHtml;
 
     // Clear the clicked team name after use
     _clickedTeamName = null;
