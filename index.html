@@ -430,6 +430,7 @@
       padding: 10px 16px;
       cursor: pointer;
       transition: background 0.15s;
+      text-align: center;
     }
 
     .custom-dropdown-item:hover {
@@ -440,12 +441,6 @@
       background: rgba(0, 49, 161, 0.08);
     }
 
-    .custom-dropdown-item .item-night {
-      font-size: 0.75rem;
-      color: var(--muted);
-      line-height: 1.2;
-    }
-
     .custom-dropdown-item .item-name {
       font-weight: 700;
       font-size: 0.9375rem;
@@ -453,10 +448,15 @@
       line-height: 1.3;
     }
 
-    .custom-dropdown-separator {
-      height: 1px;
-      background: var(--border);
-      margin: 4px 12px;
+    /* Day-of-week section header in dropdown */
+    .custom-dropdown-day-header {
+      padding: 10px 16px 4px;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      text-align: center;
     }
 
     /* -- Status text ----------------------------------------------------- */
@@ -502,6 +502,13 @@
       border: 1px solid var(--err-border);
     }
 
+    /* Narrower centered box for tri-annual and playoff */
+    .box-narrow {
+      max-width: 66%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
     .box h2 {
       font-size: 1.125rem;
       font-weight: 700;
@@ -525,7 +532,12 @@
       color: var(--spm-accent);
     }
 
-    /* -- Division info card: team count badge ----------------------------- */
+    /* -- Division info: floating centered element (no box) ---------------- */
+    .division-info-floating {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
     .division-info-row {
       display: flex;
       align-items: center;
@@ -546,6 +558,15 @@
       font-weight: 900;
       flex-shrink: 0;
       box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    }
+
+    /* Smaller text for team name in badge */
+    .team-count-badge.badge-team-name {
+      font-size: 0.625rem;
+      padding: 4px;
+      text-align: center;
+      line-height: 1.1;
+      word-break: break-word;
     }
 
     .division-info-text {
@@ -747,9 +768,9 @@
 
   <!-- ── Results ─────────────────────────────────────────────────────── -->
   <div class="results" id="results">
-    <div class="box box-neutral" id="divisionBox"></div>
-    <div class="box box-ok" id="triBox"></div>
-    <div class="box box-ok" id="playoffBox"></div>
+    <div class="division-info-floating" id="divisionBox"></div>
+    <div class="box box-ok box-narrow" id="triBox"></div>
+    <div class="box box-ok box-narrow" id="playoffBox"></div>
     <div class="box box-warn" id="warningBox" style="display:none;"></div>
     <div class="box box-err" id="errorBox" style="display:none;"></div>
   </div>
@@ -780,6 +801,9 @@
   // ======================================================================
 
   var API_URL = 'https://finalstandings.spmapa.workers.dev';
+
+  // Global: stores the team name when a player pill is clicked
+  var _clickedTeamName = null;
 
   // ── callServer — Generic API caller ───────────────────────────────────
   // Sends a POST to the Cloudflare Worker with { action, ...params }.
@@ -905,11 +929,24 @@
     var baseName = stripFormatSuffix(data.divisionName || '');
     var numTeams = escapeHtml(data.numTeams);
 
+    // Determine badge content: team name (from pill click) or team count (from dropdown)
+    var badgeContent;
+    var badgeClass = 'team-count-badge';
+    if (_clickedTeamName) {
+      badgeContent = escapeHtml(_clickedTeamName);
+      badgeClass = 'team-count-badge badge-team-name';
+    } else {
+      badgeContent = numTeams;
+    }
+
     divBox.innerHTML =
       '<div class="division-info-row">' +
-        '<div class="team-count-badge">' + numTeams + '</div>' +
-        '<div class="division-info-text">' + escapeHtml(baseName) + '<br><span style="font-weight:400;font-size:0.875rem;color:var(--muted);">' + numTeams + ' teams</span></div>' +
+        '<div class="' + badgeClass + '">' + badgeContent + '</div>' +
+        '<div class="division-info-text">' + escapeHtml(baseName) + ' Division<br><span style="font-weight:400;font-size:0.875rem;color:var(--muted);">' + numTeams + ' teams</span></div>' +
       '</div>';
+
+    // Clear the clicked team name after use
+    _clickedTeamName = null;
 
     // Tri-annual qualifiers — with green left border and position circles
     var triLines = (data.triAnnualLines || []).map(function(l) {
@@ -1053,11 +1090,12 @@
       var o = options[i];
       var night = o.nightText.replace(/[()]/g, '') || '';
 
-      // Add separator between night groups
-      if (lastNight !== null && night !== lastNight) {
-        var sep = document.createElement('div');
-        sep.className = 'custom-dropdown-separator';
-        panel.appendChild(sep);
+      // Add day-of-week section header when the night group changes
+      if (night !== lastNight && night) {
+        var header = document.createElement('div');
+        header.className = 'custom-dropdown-day-header';
+        header.textContent = night;
+        panel.appendChild(header);
       }
       lastNight = night;
 
@@ -1067,7 +1105,6 @@
       item.setAttribute('data-night', night);
       item.setAttribute('data-basename', o.baseName);
       item.innerHTML =
-        (night ? '<div class="item-night">' + escapeHtml(night) + '</div>' : '') +
         '<div class="item-name">' + escapeHtml(o.baseName) + '</div>';
 
       item.addEventListener('click', (function(key, baseName, nightLabel) {
@@ -1262,7 +1299,7 @@
       // Show team name(s) instead of division name + night
       var teamNames = baseToTeams[bn] || [];
       var pillLabel = teamNames.length > 0 ? teamNames.join(' / ') : bn;
-      html += '<button class="player-pill" data-div="' + escapeHtml(baseToFullName[bn]) + '">';
+      html += '<button class="player-pill" data-div="' + escapeHtml(baseToFullName[bn]) + '" data-team="' + escapeHtml(pillLabel) + '">';
       html += escapeHtml(pillLabel);
       html += '</button>';
     }
@@ -1301,6 +1338,8 @@
         // Remove active from all pills, add to this one
         pills.forEach(function(p) { p.classList.remove('active'); });
         pill.classList.add('active');
+        // Store the clicked team name globally for renderResults
+        _clickedTeamName = pill.getAttribute('data-team');
         selectDivisionByName(pill.getAttribute('data-div'));
       });
     });
@@ -1308,6 +1347,7 @@
     // ── Auto-select if only one division ──
     if (divNames.length === 1) {
       pills[0].classList.add('active');
+      _clickedTeamName = pills[0].getAttribute('data-team');
       selectDivisionByName(pills[0].getAttribute('data-div'));
     }
   }
