@@ -707,16 +707,17 @@
     </select>
   </header>
 
-  <!-- ── Summary Banner (gradient pill) ────────────────────────────── -->
-  <div id="summaryBanner" style="display:none;max-width:560px;margin:0 auto 16px;padding:16px 24px;background:linear-gradient(135deg, var(--spm-primary), var(--spm-accent));border-radius:999px;box-shadow:0 3px 10px rgba(0,0,0,0.12);text-align:center;color:#fff;">
-    <div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;">
-      <div>
-        <span style="font-size:1.75rem;font-weight:900;" id="summary8count">&mdash;</span>
-        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.9;">8-Ball Teams</div>
+  <!-- ── Summary Banner ────────────────────────────────────────────── -->
+  <div id="summaryBanner" style="display:none;max-width:560px;margin:0 auto 20px;text-align:center;">
+    <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;color:var(--muted);margin-bottom:12px;">Teams Advancing to Tri-Annuals</div>
+    <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div id="summary8circle" style="width:64px;height:64px;border-radius:50%;background:var(--spm-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:900;box-shadow:0 3px 10px rgba(234,0,42,0.3);">&mdash;</div>
+        <div style="font-size:0.75rem;font-weight:600;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:0.05em;">8-Ball</div>
       </div>
-      <div>
-        <span style="font-size:1.75rem;font-weight:900;" id="summary9count">&mdash;</span>
-        <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;opacity:0.9;">9-Ball Teams</div>
+      <div style="display:flex;flex-direction:column;align-items:center;">
+        <div id="summary9circle" style="width:64px;height:64px;border-radius:50%;background:var(--spm-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:900;box-shadow:0 3px 10px rgba(0,49,161,0.3);">&mdash;</div>
+        <div style="font-size:0.75rem;font-weight:600;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:0.05em;">9-Ball</div>
       </div>
     </div>
   </div>
@@ -1483,8 +1484,8 @@
 
       // Summary banner
       if (data && data.summary) {
-        document.getElementById('summary8count').textContent = data.summary.eightBallTeamsAdvancing;
-        document.getElementById('summary9count').textContent = data.summary.nineBallTeamsAdvancing;
+        document.getElementById('summary8circle').textContent = data.summary.eightBallTeamsAdvancing;
+        document.getElementById('summary9circle').textContent = data.summary.nineBallTeamsAdvancing;
         // Total removed — 8-Ball and 9-Ball are separate tri-annuals
         document.getElementById('summaryBanner').style.display = 'block';
       }
