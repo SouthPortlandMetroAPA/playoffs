@@ -651,10 +651,10 @@
       color: #f0ece8;
     }
 
-    /* Team count pill — earthy gold/amber */
+    /* Team count pill — 9-ball yellow */
     .result-pill-count {
-      background: #b8860b;
-      color: #fff;
+      background: #f5c518;
+      color: #1a1a1a;
       font-size: 0.9rem;
     }
 
@@ -992,22 +992,18 @@
     // Clear the clicked team name after use
     _clickedTeamName = null;
 
-    // Tri-annual qualifiers — with green left border and position circles
+    // Tri-annual qualifiers — green left border, no position circles
     var triLines = (data.triAnnualLines || []).map(function(l) {
-      var pos = extractPositionNumber(l);
-      var circle = pos ? '<span class="pos-circle pos-circle-green">' + pos + '</span>' : '';
-      return '<div class="tri-line">' + circle + escapeHtml(l) + '</div>';
+      return '<div class="tri-line">' + escapeHtml(l) + '</div>';
     }).join('');
 
     triBox.innerHTML =
       '<h2>\uD83C\uDFC6 Tri-Annual Qualifiers</h2>' +
       '<div class="detail">' + triLines + '</div>';
 
-    // Playoff matchups — with amber left border and position circles
+    // Playoff matchups — amber left border, no position circles
     var playoffLines = (data.playoffLines || []).map(function(l) {
-      var pos = extractPositionNumber(l);
-      var circle = pos ? '<span class="pos-circle pos-circle-amber">' + pos + '</span>' : '';
-      return '<div class="playoff-line">' + circle + escapeHtml(l) + '</div>';
+      return '<div class="playoff-line">' + escapeHtml(l) + '</div>';
     }).join('');
 
     playoffBox.innerHTML =
