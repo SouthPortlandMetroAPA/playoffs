@@ -981,8 +981,10 @@
     // Pill 2: Division name (warm dark tone — charcoal with subtle warmth)
     pillsHtml += '<div class="result-pill result-pill-division">' + escapeHtml(baseName) + ' Division</div>';
 
-    // Pill 3: Team count (earthy gold/amber tone)
-    pillsHtml += '<div class="result-pill result-pill-count">' + numTeams + ' Teams</div>';
+    // Pill 3: Team count (only when from player pill click — dropdown shows division only)
+    if (_clickedTeamName) {
+      pillsHtml += '<div class="result-pill result-pill-count">' + numTeams + ' Teams</div>';
+    }
 
     pillsHtml += '</div>';
     divBox.innerHTML = pillsHtml;
