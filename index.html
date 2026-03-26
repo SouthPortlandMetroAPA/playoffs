@@ -289,22 +289,35 @@
       position: relative;
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 6px;
+      justify-content: space-between;
+      gap: 8px;
       width: 100%;
-      padding: 12px 20px;
-      border: none;
-      border-radius: 14px;
-      background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
-      color: #fff;
-      font-weight: 900;
+      padding: 12px 16px 12px 20px;
+      border: 2px solid var(--spm-accent);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--spm-accent);
+      font-weight: 800;
       font-size: 0.9375rem;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.02em;
       font-family: inherit;
       cursor: pointer;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
       min-height: 48px;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 2px 8px rgba(0, 49, 161, 0.12);
+    }
+
+    .player-pill::after {
+      content: '→';
+      font-size: 1.1em;
+      opacity: 0.5;
+      flex-shrink: 0;
+    }
+
+    .player-pill:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 14px rgba(0, 49, 161, 0.2);
+      background: rgba(0, 49, 161, 0.04);
     }
 
     .player-pill .pill-night {
@@ -335,10 +348,14 @@
 
     .player-pill:active,
     .player-pill.active {
-      background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
-      border-color: transparent;
+      background: var(--spm-accent);
+      border-color: var(--spm-accent);
       color: #fff;
-      box-shadow: 0 4px 12px rgba(234, 0, 42, 0.3), 0 2px 6px rgba(0, 49, 161, 0.2);
+      box-shadow: 0 4px 12px rgba(0, 49, 161, 0.3);
+    }
+
+    .player-pill.active::after {
+      opacity: 0.7;
     }
 
     .player-pill.active .pill-night {
@@ -734,44 +751,38 @@
     }
 
     /* -- Result pills stack (mobile: stacked vertically) ------------------- */
-    .result-pills-stack {
+    .result-info-stack {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
+      gap: 2px;
+      margin-bottom: 16px;
     }
 
-    .result-pill {
-      display: inline-block;
-      padding: 8px 24px;
-      border-radius: 999px;
-      font-weight: 700;
-      font-size: 1rem;
-      letter-spacing: 0.02em;
-      text-align: center;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    /* Team name pill — red/blue gradient (matches brand) */
-    .result-pill-team {
+    /* Team name — large, bold, gradient text */
+    .result-team-name {
+      font-size: 1.3rem;
+      font-weight: 900;
       background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
-      color: #fff;
-      font-size: 1.1rem;
-      padding: 10px 28px;
-      box-shadow: 0 3px 10px rgba(234, 0, 42, 0.2), 0 2px 6px rgba(0, 49, 161, 0.15);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
     }
 
-    /* Division name pill — warm charcoal (dark but not black, subtle warmth) */
-    .result-pill-division {
-      background: #3a3238;
-      color: #f0ece8;
+    /* Division name — medium, muted */
+    .result-division-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--muted);
     }
 
-    /* Team count pill — 9-ball yellow */
-    .result-pill-count {
-      background: #f5c518;
-      color: #1a1a1a;
-      font-size: 0.9rem;
+    /* Team count — small label */
+    .result-team-count {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      opacity: 0.7;
     }
 
     /* -- Footer note ----------------------------------------------------- */
@@ -1117,31 +1128,24 @@
         margin-bottom: 0;
       }
 
-      /* ── Desktop result pills — horizontal row ── */
-      .result-pills-stack {
+      /* ── Desktop result info — horizontal on desktop ── */
+      .result-info-stack {
         flex-direction: row;
         justify-content: center;
-        flex-wrap: wrap;
-        gap: 10px;
+        gap: 16px;
+        align-items: baseline;
       }
 
-      .result-pill {
-        font-size: 14px;
-        padding: 6px 20px;
+      .result-team-name {
+        font-size: 1.1rem;
       }
 
-      .result-pill:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      .result-division-name {
+        font-size: 0.9rem;
       }
 
-      .result-pill-team {
-        font-size: 15px;
-        padding: 8px 22px;
-      }
-
-      .result-pill-count {
-        font-size: 13px;
+      .result-team-count {
+        font-size: 0.8rem;
       }
 
       /* ── Desktop division info ── */
@@ -1458,24 +1462,23 @@
     var baseName = stripFormatSuffix(data.divisionName || '');
     var numTeams = escapeHtml(data.numTeams);
 
-    // Build stacked pills: team name (if from pill click), division name, team count
-    var pillsHtml = '<div class="result-pills-stack">';
+    // Build info display: team name (if from pill click), division name, team count
+    // These are HEADERS (non-interactive), not buttons — styled as plain text
+    var infoHtml = '<div class="result-info-stack">';
 
-    // Pill 1: Team name (only if clicked from player pill — red/blue gradient)
+    // Team name (only if clicked from player pill)
     if (_clickedTeamName) {
-      pillsHtml += '<div class="result-pill result-pill-team">' + escapeHtml(_clickedTeamName) + '</div>';
+      infoHtml += '<div class="result-team-name">' + escapeHtml(_clickedTeamName) + '</div>';
     }
 
-    // Pill 2: Division name (warm dark tone — charcoal with subtle warmth)
-    pillsHtml += '<div class="result-pill result-pill-division">' + escapeHtml(baseName) + ' Division</div>';
+    // Division name
+    infoHtml += '<div class="result-division-name">' + escapeHtml(baseName) + ' Division</div>';
 
-    // Pill 3: Team count (only when from player pill click — dropdown shows division only)
-    if (_clickedTeamName) {
-      pillsHtml += '<div class="result-pill result-pill-count">' + numTeams + ' Teams</div>';
-    }
+    // Team count
+    infoHtml += '<div class="result-team-count">' + numTeams + ' Teams</div>';
 
-    pillsHtml += '</div>';
-    divBox.innerHTML = pillsHtml;
+    infoHtml += '</div>';
+    divBox.innerHTML = infoHtml;
 
     // Clear the clicked team name after use
     _clickedTeamName = null;
