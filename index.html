@@ -1910,6 +1910,9 @@
         return;
       }
 
+      // Save to sessionStorage for auto-lookup on return
+      try { sessionStorage.setItem('finalstandings_lastInput', input); } catch (_) {}
+
       renderPlayerResults(data);
     } catch (err) {
       btn.disabled = false;
@@ -2024,6 +2027,17 @@
     } catch (e) {
       document.getElementById('status').textContent = 'Failed to load divisions. Please refresh to try again.';
     }
+
+    // ── Auto-lookup from sessionStorage (remember user) ────────────────
+    // Same pattern as MultiPass: if the user looked up before in this
+    // browser tab, auto-repeat the lookup so they see their teams immediately.
+    try {
+      var lastInput = sessionStorage.getItem('finalstandings_lastInput');
+      if (lastInput) {
+        document.getElementById('lookupInput').value = lastInput;
+        document.getElementById('lookupForm').dispatchEvent(new Event('submit'));
+      }
+    } catch (_) {}
   });
 </script>
 
