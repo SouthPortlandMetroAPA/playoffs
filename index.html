@@ -3,7 +3,7 @@
 <head>
   <!--
   ============================================================================
-  FinalStandings — index.html (Standalone / GitHub Pages)
+  Playoffs — index.html (Standalone / GitHub Pages)
   ============================================================================
 
   PURPOSE:
@@ -17,9 +17,9 @@
     Standalone build (go-forward stack). All CSS and JS are inline in this
     single HTML file.
 
-    Frontend: GitHub Pages (southportlandmetroapa.github.io/finalstandings/)
+    Frontend: GitHub Pages (southportlandmetroapa.github.io/playoffs/)
         ↓ fetch() POST (Content-Type: text/plain, redirect: follow)
-    CORS Proxy: Cloudflare Worker (finalstandings.spmapa.workers.dev)
+    CORS Proxy: Cloudflare Worker (playoffs.spmapa.workers.dev)
         ↓ forward POST
     Backend: GAS doPost (Api.js → Code.js)
         ↓
@@ -43,7 +43,7 @@
 
   ============================================================================
   -->
-  <title>FinalStandings — South Portland Metro APA</title>
+  <title>Playoffs — South Portland Metro APA</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
@@ -1212,7 +1212,7 @@
   <!-- ── Header ──────────────────────────────────────────────────────── -->
   <header>
     <div class="header-org">South Portland Metro APA</div>
-    <h1 class="header-title">FinalStandings</h1>
+    <h1 class="header-title">Playoffs</h1>
     <div class="header-pill">Tri-Annuals &amp; Playoffs</div>
     <select class="session-select" id="sessionSelect" aria-label="Current session" style="display:none;">
       <option value="" disabled selected>Loading...</option>
@@ -1297,7 +1297,7 @@
 
 <script>
   // ======================================================================
-  // JavaScript — FinalStandings standalone frontend
+  // JavaScript — Playoffs standalone frontend
   // ======================================================================
   //
   // Flow:
@@ -1315,7 +1315,7 @@
   //   - JSON parse + error handling
   // ======================================================================
 
-  var API_URL = 'https://finalstandings.spmapa.workers.dev';
+  var API_URL = 'https://playoffs.spmapa.workers.dev';
 
   // Global: stores the team name when a player pill is clicked
   var _clickedTeamName = null;
@@ -1914,7 +1914,7 @@
       }
 
       // Save to sessionStorage for auto-lookup on return
-      try { sessionStorage.setItem('finalstandings_lastInput', input); } catch (_) {}
+      try { sessionStorage.setItem('playoffs_lastInput', input); } catch (_) {}
 
       renderPlayerResults(data);
     } catch (err) {
@@ -1980,7 +1980,7 @@
           document.body.style.cssText = 'margin:0;padding:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100svh;font-family:system-ui,-apple-system,sans-serif;';
           var box = document.createElement('div');
           box.style.cssText = 'text-align:center;padding:48px 24px;max-width:500px;';
-          box.innerHTML = '<div style="font-size:48px;font-weight:900;font-style:italic;color:#ea002a;line-height:1.1;margin-bottom:24px;">FinalStandings</div>'
+          box.innerHTML = '<div style="font-size:48px;font-weight:900;font-style:italic;color:#ea002a;line-height:1.1;margin-bottom:24px;">Playoffs</div>'
             + '<div style="font-size:20px;font-weight:600;color:#0031a1;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:16px;">Under Maintenance</div>'
             + '<div style="font-size:15px;color:#888;line-height:1.6;">We\'re making improvements.<br>Check back shortly.</div>';
           document.body.appendChild(box);
@@ -2035,7 +2035,7 @@
     // Same pattern as MultiPass: if the user looked up before in this
     // browser tab, auto-repeat the lookup so they see their teams immediately.
     try {
-      var lastInput = sessionStorage.getItem('finalstandings_lastInput');
+      var lastInput = sessionStorage.getItem('playoffs_lastInput');
       if (lastInput) {
         document.getElementById('lookupInput').value = lastInput;
         document.getElementById('lookupForm').dispatchEvent(new Event('submit'));
