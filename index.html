@@ -1774,29 +1774,34 @@
     var divTeams = {};     // divisionName → [teamName, ...]
     var divNight = {};     // divisionName → nightOfPlay
 
-    // Build set of division names in the main dropdown for matching
+    // Build set of BASE division names in the main dropdown for matching.
+    // The dropdown uses base names (e.g., "West Hills") not full names
+    // (e.g., "West Hills 8 Ball"). The API returns full names, so we must
+    // match on base name to avoid dropping DJ-single entries (player on
+    // 9-Ball only but not 8-Ball → full name "West Hills 9 Ball" won't
+    // match dropdown value "West Hills" without stripping the suffix).
     var selectEl = document.getElementById('divisionSelect');
-    var dropdownNames = {};
+    var dropdownBaseNames = {};  // baseName → dropdown value
     for (var i = 0; i < selectEl.options.length; i++) {
       var val = selectEl.options[i].value;
-      if (val) dropdownNames[val] = true;
+      if (val) dropdownBaseNames[stripFormatSuffix(val)] = val;
     }
 
     // Group by BASE name (strip 8/9 Ball suffix) — collapse DJ pairs
     var baseToTeams = {};   // baseName → [teamName, ...]
     var baseToNight = {};   // baseName → nightOfPlay
-    var baseToFullName = {}; // baseName → first full division name (for dropdown value)
+    var baseToFullName = {}; // baseName → dropdown value (for auto-select)
 
     for (var t = 0; t < teams.length; t++) {
       var team = teams[t];
       var divName = team.divisionName || '';
-      if (!divName || !dropdownNames[divName]) continue;
-
       var baseName = stripFormatSuffix(divName);
+      if (!baseName || !dropdownBaseNames[baseName]) continue;
+
       if (!baseToTeams[baseName]) {
         baseToTeams[baseName] = [];
         baseToNight[baseName] = team.nightOfPlay || '';
-        baseToFullName[baseName] = divName;
+        baseToFullName[baseName] = dropdownBaseNames[baseName];
       }
       var teamLabel = team.teamName || ('Team ' + team.teamNumber);
       if (baseToTeams[baseName].indexOf(teamLabel) === -1) {
