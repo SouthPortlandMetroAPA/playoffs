@@ -48,11 +48,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     /* ======================================================================
-       CSS — Branding & Layout (ShotClock visual identity)
+       CSS — Mobile-first responsive design (PatchCheck affordance patterns)
        ======================================================================
-       16px base font (standalone app — no GAS iframe scaling).
-       CSS @media queries for responsive layout.
-       4px spacing grid. All values are multiples of 4.
+       Mobile-first: base styles are mobile.
+       Tablet: @media (min-width: 768px) and (max-width: 1199px)
+       Desktop: @media (min-width: 1200px)
        ====================================================================== */
 
     :root {
@@ -83,7 +83,7 @@
       padding: 0;
     }
 
-    /* -- Base ------------------------------------------------------------ */
+    /* -- Base (mobile-first) ---------------------------------------------- */
     html, body {
       width: 100%;
       background: var(--bg);
@@ -95,8 +95,9 @@
       visibility: hidden;
     }
 
-    /* -- Page wrapper ---------------------------------------------------- */
+    /* -- Page wrapper (mobile: full-width with generous padding) ----------- */
     .page {
+      width: 100%;
       max-width: 600px;
       margin: 0 auto;
       padding: 16px;
@@ -105,7 +106,7 @@
     /* -- Header ---------------------------------------------------------- */
     header {
       width: 100%;
-      border-radius: 22px;
+      border-radius: 16px;
       padding: 22px 20px 20px;
       color: #fff;
       background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
@@ -160,38 +161,37 @@
     }
 
     /* =====================================================================
-       PLAYER LOOKUP BAR — Compact horizontal search (MultiPass-style)
-       =====================================================================
-       Horizontal bar with input + button. Max-width matches page,
-       pill-shaped with subtle shadow. Input takes remaining width.
+       PLAYER LOOKUP BAR — Mobile: stacked; Desktop: horizontal row
        ===================================================================== */
     .lookup-bar {
       display: flex;
-      align-items: center;
+      flex-direction: column;
+      align-items: stretch;
       gap: 8px;
+      width: 100%;
       max-width: 480px;
       margin: 0 auto 16px;
-      padding: 8px 12px;
+      padding: 12px 16px;
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 999px;
+      border-radius: 16px;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     }
 
     .lookup-bar .lookup-input {
-      flex: 1;
+      width: 100%;
       min-width: 0;
-      padding: 10px 14px;
-      font-size: 0.9375rem;
-      border-radius: 999px;
+      padding: 12px 16px;
+      font-size: 1rem;
+      border-radius: 12px;
       border: 1px solid var(--border);
       background: var(--bg);
       font-family: inherit;
       text-align: center;
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
-      /* 48px min tap target via padding */
-      min-height: 44px;
+      /* 48px min tap target */
+      min-height: 48px;
     }
 
     .lookup-bar .lookup-input:focus {
@@ -200,17 +200,17 @@
     }
 
     .lookup-bar .lookup-btn {
-      flex-shrink: 0;
-      padding: 10px 20px;
+      width: 100%;
+      padding: 12px 20px;
       border: none;
       border-bottom: 3px solid rgba(0, 0, 0, 0.25);
-      border-radius: 999px;
+      border-radius: 12px;
       background:
         linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(0,0,0,0.10) 100%),
         linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
       color: #fff;
       font-weight: 900;
-      font-size: 0.9375rem;
+      font-size: 1rem;
       letter-spacing: 0.1em;
       box-shadow:
         inset 0 1px 1px rgba(255, 255, 255, 0.35),
@@ -218,10 +218,10 @@
       cursor: pointer;
       font-family: inherit;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-      transition: box-shadow 0.15s, transform 0.15s;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
       white-space: nowrap;
       /* 48px min tap target */
-      min-height: 44px;
+      min-height: 48px;
     }
 
     .lookup-bar .lookup-btn:disabled {
@@ -249,6 +249,7 @@
     /* -- Player results section ------------------------------------------- */
     .player-results {
       display: none;
+      width: 100%;
       max-width: 480px;
       margin: 0 auto 16px;
     }
@@ -263,8 +264,8 @@
 
     .player-pills {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
       gap: 8px;
       margin-top: 8px;
     }
@@ -273,10 +274,12 @@
       position: relative;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
-      padding: 10px 20px;
+      width: 100%;
+      padding: 12px 20px;
       border: none;
-      border-radius: 999px;
+      border-radius: 14px;
       background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
       color: #fff;
       font-weight: 900;
@@ -284,8 +287,8 @@
       letter-spacing: 0.1em;
       font-family: inherit;
       cursor: pointer;
-      transition: all 0.2s ease;
-      min-height: 44px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      min-height: 48px;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
     }
 
@@ -309,6 +312,10 @@
       text-decoration: underline;
       text-decoration-style: dotted;
       text-underline-offset: 2px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .player-pill:active,
@@ -365,7 +372,7 @@
       text-align: center;
       position: relative;
       box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-      transition: border-color 0.2s;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.2s;
     }
 
     .custom-dropdown-trigger::after {
@@ -431,10 +438,14 @@
       cursor: pointer;
       transition: background 0.15s;
       text-align: center;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .custom-dropdown-item:hover {
-      background: var(--bg);
+      background: rgba(0, 49, 161, 0.06);
     }
 
     .custom-dropdown-item.selected {
@@ -459,6 +470,67 @@
       text-align: center;
     }
 
+    /* -- Summary Banner --------------------------------------------------- */
+    .summary-banner {
+      max-width: 480px;
+      margin: 0 auto 20px;
+      text-align: center;
+    }
+
+    .summary-banner-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .summary-circles {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .summary-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .summary-circle {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 900;
+    }
+
+    .summary-circle-8 {
+      background: #1a1a1a;
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+    }
+
+    .summary-circle-9 {
+      background: #f5c518;
+      color: #1a1a1a;
+      box-shadow: 0 3px 10px rgba(245,197,24,0.4);
+    }
+
+    .summary-circle-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
     /* -- Status text ----------------------------------------------------- */
     .status {
       text-align: center;
@@ -468,7 +540,7 @@
       font-size: 0.9375rem;
     }
 
-    /* -- Result cards ---------------------------------------------------- */
+    /* -- Result cards (mobile: full-width, generous padding) --------------- */
     .results {
       display: none;
     }
@@ -476,11 +548,12 @@
     .box {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 22px;
+      border-radius: 16px;
       padding: 20px 20px 18px;
       box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
       margin-bottom: 16px;
       text-align: center;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
     .box-neutral {
@@ -502,11 +575,17 @@
       border: 1px solid var(--err-border);
     }
 
-    /* Narrower centered box for tri-annual and playoff */
-    .box-narrow {
-      max-width: 66%;
-      margin-left: auto;
-      margin-right: auto;
+    /* Grid container for tri + playoff cards */
+    .advancement-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    /* Remove individual margin from boxes inside grid */
+    .advancement-grid .box {
+      margin-bottom: 0;
     }
 
     .box h2 {
@@ -618,7 +697,7 @@
       background: #ff9800;
     }
 
-    /* -- Result pills stack (team / division / count) -------------------- */
+    /* -- Result pills stack (mobile: stacked vertically) ------------------- */
     .result-pills-stack {
       display: flex;
       flex-direction: column;
@@ -634,6 +713,7 @@
       font-size: 1rem;
       letter-spacing: 0.02em;
       text-align: center;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
     /* Team name pill — red/blue gradient (matches brand) */
@@ -689,27 +769,372 @@
       100% { background-position: -200% 0; }
     }
 
-    /* -- Responsive: tablet+ gets wider cards ---------------------------- */
-    @media (min-width: 768px) {
+    /* =====================================================================
+       TABLET — @media (min-width: 768px) and (max-width: 1199px)
+       =====================================================================
+       Same stacked layout as mobile, slightly tighter spacing,
+       wider max-width.
+       ===================================================================== */
+    @media (min-width: 768px) and (max-width: 1199px) {
       .page {
-        max-width: 700px;
-        padding: 24px;
+        max-width: 660px;
+        padding: 20px;
       }
 
-      .box {
-        padding: 20px 24px;
+      header {
+        border-radius: 14px;
+        padding: 20px 22px 18px;
+        margin-bottom: 16px;
       }
 
       .lookup-bar {
         max-width: 560px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        flex-direction: row;
+        align-items: center;
+      }
+
+      .lookup-bar .lookup-input {
+        flex: 1;
+        width: auto;
+        min-height: 44px;
+        padding: 10px 14px;
+        font-size: 0.9375rem;
+      }
+
+      .lookup-bar .lookup-btn {
+        width: auto;
+        flex-shrink: 0;
+        min-height: 44px;
+        padding: 10px 20px;
+        font-size: 0.9375rem;
       }
 
       .player-results {
         max-width: 560px;
       }
 
+      .player-pills {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .player-pill {
+        width: auto;
+      }
+
       .custom-dropdown {
         max-width: 560px;
+      }
+
+      .summary-banner {
+        max-width: 560px;
+      }
+
+      .box {
+        padding: 20px 24px;
+      }
+
+      /* Tri + Playoff still stacked on tablet */
+      .advancement-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* =====================================================================
+       DESKTOP — @media (min-width: 1200px)
+       =====================================================================
+       PatchCheck-inspired: compact density, hover lift, horizontal search,
+       darker background for card contrast.
+       ===================================================================== */
+    @media (min-width: 1200px) {
+      /* Darker background for card contrast */
+      html, body {
+        background: #e8e8e8;
+        font-size: 14px;
+      }
+
+      .page {
+        max-width: 900px;
+        padding: 16px 24px;
+      }
+
+      /* ── Desktop header ── */
+      header {
+        border-radius: 12px;
+        padding: 18px 24px 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      .header-title {
+        font-size: 28px;
+      }
+
+      .header-subtitle {
+        font-size: 18px;
+      }
+
+      /* ── Desktop summary banner ── */
+      .summary-banner {
+        max-width: 900px;
+        margin-bottom: 12px;
+      }
+
+      .summary-banner-label {
+        font-size: 0.7rem;
+        margin-bottom: 8px;
+      }
+
+      .summary-circles {
+        gap: 32px;
+      }
+
+      .summary-circle {
+        width: 52px;
+        height: 52px;
+        font-size: 1.25rem;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .summary-circle:hover {
+        transform: translateY(-2px);
+      }
+
+      .summary-circle-label {
+        font-size: 0.65rem;
+      }
+
+      /* ── Desktop search — horizontal row ── */
+      .lookup-bar {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        max-width: 900px;
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 12px;
+      }
+
+      .lookup-bar .lookup-input {
+        flex: 1;
+        width: auto;
+        font-size: 14px;
+        padding: 8px 14px;
+        text-align: left;
+        min-height: 36px;
+        border-radius: 8px;
+      }
+
+      .lookup-bar .lookup-btn {
+        width: auto;
+        flex-shrink: 0;
+        margin-top: 0;
+        padding: 8px 22px;
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        min-height: 36px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .lookup-bar .lookup-btn:hover:not(:disabled) {
+        filter: brightness(1.1);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+      }
+
+      /* ── Desktop player results ── */
+      .player-results {
+        max-width: 900px;
+      }
+
+      .player-name {
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+
+      .player-pills {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .player-pill {
+        width: auto;
+        padding: 8px 18px;
+        font-size: 13px;
+        min-height: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+
+      .player-pill:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(234, 0, 42, 0.25), 0 4px 10px rgba(0, 49, 161, 0.18);
+      }
+
+      .browse-all-btn {
+        min-height: 32px;
+        font-size: 12px;
+      }
+
+      /* ── Desktop lead text ── */
+      .lead {
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+
+      /* ── Desktop dropdown ── */
+      .custom-dropdown {
+        max-width: 400px;
+      }
+
+      .custom-dropdown-trigger {
+        padding: 10px 36px 10px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        min-height: 40px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      }
+
+      .custom-dropdown-trigger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        border-color: var(--spm-accent);
+      }
+
+      .custom-dropdown-panel {
+        border-radius: 10px;
+      }
+
+      .custom-dropdown-item {
+        padding: 8px 14px;
+        min-height: 36px;
+        font-size: 13px;
+        transition: background 0.15s;
+      }
+
+      .custom-dropdown-item:hover {
+        background: rgba(0, 49, 161, 0.08);
+      }
+
+      .custom-dropdown-item .item-name {
+        font-size: 13px;
+      }
+
+      .custom-dropdown-day-header {
+        padding: 8px 14px 3px;
+        font-size: 0.625rem;
+      }
+
+      /* ── Desktop status ── */
+      .status {
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+
+      .lookup-status {
+        font-size: 13px;
+      }
+
+      /* ── Desktop result cards ── */
+      .box {
+        border-radius: 12px;
+        padding: 16px 20px 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+      }
+
+      .box h2 {
+        font-size: 1rem;
+        margin-bottom: 6px;
+      }
+
+      .box .detail {
+        font-size: 14px;
+      }
+
+      /* Tri + Playoff: side by side in 2-column grid */
+      .advancement-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+
+      .advancement-grid .box {
+        margin-bottom: 0;
+      }
+
+      /* ── Desktop result pills — horizontal row ── */
+      .result-pills-stack {
+        flex-direction: row;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .result-pill {
+        font-size: 14px;
+        padding: 6px 20px;
+      }
+
+      .result-pill:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .result-pill-team {
+        font-size: 15px;
+        padding: 8px 22px;
+      }
+
+      .result-pill-count {
+        font-size: 13px;
+      }
+
+      /* ── Desktop division info ── */
+      .division-info-floating {
+        margin-bottom: 12px;
+      }
+
+      .team-count-badge {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+      }
+
+      .division-info-text {
+        font-size: 15px;
+      }
+
+      /* ── Desktop tri/playoff lines ── */
+      .tri-line,
+      .playoff-line {
+        padding: 6px 10px;
+        font-size: 13px;
+        margin-bottom: 4px;
+        border-radius: 0 6px 6px 0;
+      }
+
+      /* ── Desktop footer ── */
+      .footer-note {
+        margin-top: 12px;
+        font-size: 0.6875rem;
+      }
+
+      /* ── Desktop skeleton ── */
+      .skeleton {
+        padding: 16px;
       }
     }
 
@@ -748,16 +1173,16 @@
   </header>
 
   <!-- ── Summary Banner ────────────────────────────────────────────── -->
-  <div id="summaryBanner" style="display:none;max-width:560px;margin:0 auto 20px;text-align:center;">
-    <div style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.1em;font-weight:700;color:var(--muted);margin-bottom:12px;">Teams Advancing to Tri-Annuals</div>
-    <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">
-      <div style="display:flex;flex-direction:column;align-items:center;">
-        <div id="summary8circle" style="width:64px;height:64px;border-radius:50%;background:#1a1a1a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:900;box-shadow:0 3px 10px rgba(0,0,0,0.35);">&mdash;</div>
-        <div style="font-size:0.75rem;font-weight:600;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:0.05em;">8-Ball</div>
+  <div class="summary-banner" id="summaryBanner" style="display:none;">
+    <div class="summary-banner-label">Teams Advancing to Tri-Annuals</div>
+    <div class="summary-circles">
+      <div class="summary-item">
+        <div class="summary-circle summary-circle-8" id="summary8circle">&mdash;</div>
+        <div class="summary-circle-label">8-Ball</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:center;">
-        <div id="summary9circle" style="width:64px;height:64px;border-radius:50%;background:#f5c518;color:#1a1a1a;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:900;box-shadow:0 3px 10px rgba(245,197,24,0.4);">&mdash;</div>
-        <div style="font-size:0.75rem;font-weight:600;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:0.05em;">9-Ball</div>
+      <div class="summary-item">
+        <div class="summary-circle summary-circle-9" id="summary9circle">&mdash;</div>
+        <div class="summary-circle-label">9-Ball</div>
       </div>
     </div>
   </div>
@@ -810,8 +1235,10 @@
   <!-- ── Results ─────────────────────────────────────────────────────── -->
   <div class="results" id="results">
     <div class="division-info-floating" id="divisionBox"></div>
-    <div class="box box-ok box-narrow" id="triBox"></div>
-    <div class="box box-ok box-narrow" id="playoffBox"></div>
+    <div class="advancement-grid" id="advancementGrid">
+      <div class="box box-ok" id="triBox"></div>
+      <div class="box box-ok" id="playoffBox"></div>
+    </div>
     <div class="box box-warn" id="warningBox" style="display:none;"></div>
     <div class="box box-err" id="errorBox" style="display:none;"></div>
   </div>
@@ -953,6 +1380,7 @@
       divBox.style.display = 'none';
       triBox.style.display = 'none';
       playoffBox.style.display = 'none';
+      document.getElementById('advancementGrid').style.display = 'none';
       warnBox.style.display = 'none';
       results.style.display = 'block';
       return;
@@ -962,6 +1390,7 @@
     divBox.style.display = '';
     triBox.style.display = '';
     playoffBox.style.display = '';
+    document.getElementById('advancementGrid').style.display = '';
     errBox.style.display = 'none';
     warnBox.style.display = 'none';
     results.style.display = 'block';
