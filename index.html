@@ -1481,12 +1481,15 @@
     _clickedTeamName = null;
 
     // Tri-annual qualifiers — green left border, aligned columns
-    var triLines = (data.triAnnualLines || []).map(function(l) {
-      return '<div class="tri-line">' + splitLineToColumns(l) + '</div>';
+    // First line gets trophy emoji ("and the trophy 🏆") — only 1st place earns it
+    var triLines = (data.triAnnualLines || []).map(function(l, idx) {
+      var cols = splitLineToColumns(l);
+      if (idx === 0) cols = cols.replace('</span>', ' and the trophy \uD83C\uDFC6</span>');
+      return '<div class="tri-line">' + cols + '</div>';
     }).join('');
 
     triBox.innerHTML =
-      '<h2>\uD83C\uDFC6 Tri-Annual Qualifiers</h2>' +
+      '<h2>Tri-Annual Qualifiers</h2>' +
       '<div class="detail">' + triLines + '</div>';
 
     // Playoff matchups — amber left border, aligned columns
