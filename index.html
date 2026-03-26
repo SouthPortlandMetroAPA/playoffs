@@ -614,6 +614,12 @@
       font-size: 0.9375rem;
       line-height: 1.6;
       color: #333;
+      display: inline-block;
+      text-align: left;
+    }
+
+    .box {
+      text-align: center;
     }
 
     .box .detail div {
@@ -669,23 +675,38 @@
     }
 
     /* -- Tri-Annual qualifier lines -------------------------------------- */
-    .tri-line {
-      text-align: left;
+    .tri-line, .playoff-line {
+      display: flex;
+      align-items: baseline;
       padding: 8px 12px;
-      border-left: 4px solid #4caf50;
-      background: rgba(76, 175, 80, 0.06);
       border-radius: 0 8px 8px 0;
       margin-bottom: 6px;
     }
 
-    /* -- Playoff lines --------------------------------------------------- */
+    .tri-line {
+      border-left: 4px solid #4caf50;
+      background: rgba(76, 175, 80, 0.06);
+    }
+
     .playoff-line {
-      text-align: left;
-      padding: 8px 12px;
       border-left: 4px solid #ff9800;
       background: rgba(255, 152, 0, 0.06);
-      border-radius: 0 8px 8px 0;
-      margin-bottom: 6px;
+    }
+
+    /* Ordinal column: fixed width, right-aligned so "1st" and "2nd" align */
+    .line-ordinal {
+      display: inline-block;
+      width: 2.5em;
+      text-align: right;
+      font-weight: 700;
+      color: var(--spm-accent);
+      flex-shrink: 0;
+      margin-right: 0.4em;
+    }
+
+    /* Rest of line: left-aligned from the keyword column */
+    .line-rest {
+      text-align: left;
     }
 
     /* -- Position circles ------------------------------------------------ */
@@ -1328,6 +1349,21 @@
   }
 
 
+  // ── splitLineToColumns — Split "1st place advances" into ordinal + rest ─
+  // Extracts the leading ordinal (1st, 2nd, 3rd, etc.) and wraps it in a
+  // fixed-width right-aligned span. The rest of the text goes in a second span.
+  // This makes ordinals vertically align across multiple lines.
+  function splitLineToColumns(text) {
+    var match = text.match(/^(\d+(?:st|nd|rd|th))\b\s*(.*)/i);
+    if (match) {
+      return '<span class="line-ordinal">' + escapeHtml(match[1]) + '</span>' +
+             '<span class="line-rest">' + escapeHtml(match[2]) + '</span>';
+    }
+    // No ordinal found — return as-is
+    return escapeHtml(text);
+  }
+
+
   // ── rightPad — Pad string with non-breaking spaces ────────────────────
   // Uses NBSP (\u00A0) so browsers don't collapse whitespace in <option>.
 
@@ -1346,14 +1382,15 @@
 
   function boldOrdinalsAndWildcard(container) {
     if (!container) return;
-    var divs = container.querySelectorAll('.detail div');
+    // Bold ordinals and "wildcard" in .line-rest spans (the right column)
+    var spans = container.querySelectorAll('.line-rest');
     var ordinalRe = /\b(\d+(?:st|nd|rd|th))\b/g;
     var wildcardRe = /\bwildcard\b/gi;
-    divs.forEach(function(div) {
-      var html = div.innerHTML;
+    spans.forEach(function(span) {
+      var html = span.innerHTML;
       html = html.replace(ordinalRe, '<strong>$1</strong>');
       html = html.replace(wildcardRe, '<strong>$&</strong>');
-      div.innerHTML = html;
+      span.innerHTML = html;
     });
   }
 
@@ -1443,18 +1480,18 @@
     // Clear the clicked team name after use
     _clickedTeamName = null;
 
-    // Tri-annual qualifiers — green left border, no position circles
+    // Tri-annual qualifiers — green left border, aligned columns
     var triLines = (data.triAnnualLines || []).map(function(l) {
-      return '<div class="tri-line">' + escapeHtml(l) + '</div>';
+      return '<div class="tri-line">' + splitLineToColumns(l) + '</div>';
     }).join('');
 
     triBox.innerHTML =
       '<h2>\uD83C\uDFC6 Tri-Annual Qualifiers</h2>' +
       '<div class="detail">' + triLines + '</div>';
 
-    // Playoff matchups — amber left border, no position circles
+    // Playoff matchups — amber left border, aligned columns
     var playoffLines = (data.playoffLines || []).map(function(l) {
-      return '<div class="playoff-line">' + escapeHtml(l) + '</div>';
+      return '<div class="playoff-line">' + splitLineToColumns(l) + '</div>';
     }).join('');
 
     playoffBox.innerHTML =
