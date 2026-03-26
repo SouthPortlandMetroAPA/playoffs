@@ -710,6 +710,15 @@
       background: rgba(255, 152, 0, 0.06);
     }
 
+    /* Trophy sub-line below 1st place */
+    .trophy-note {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin: -2px 0 8px;
+      padding-left: 16px;
+    }
+
     /* Ordinal column: fixed width, right-aligned so "1st" and "2nd" align */
     .line-ordinal {
       display: inline-block;
@@ -1481,11 +1490,13 @@
     _clickedTeamName = null;
 
     // Tri-annual qualifiers — green left border, aligned columns
-    // First line gets trophy emoji ("and the trophy 🏆") — only 1st place earns it
+    // First line gets a trophy sub-line — only 1st place earns the trophy
     var triLines = (data.triAnnualLines || []).map(function(l, idx) {
-      var cols = splitLineToColumns(l);
-      if (idx === 0) cols = cols.replace('</span>', ' and the trophy \uD83C\uDFC6</span>');
-      return '<div class="tri-line">' + cols + '</div>';
+      var html = '<div class="tri-line">' + splitLineToColumns(l) + '</div>';
+      if (idx === 0) {
+        html += '<div class="trophy-note">\uD83C\uDFC6 <em>and the trophy</em></div>';
+      }
+      return html;
     }).join('');
 
     triBox.innerHTML =
