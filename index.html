@@ -115,19 +115,34 @@
       margin-bottom: 20px;
     }
 
-    .header-title {
-      font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+    .header-org {
+      font-size: clamp(1.4rem, 1rem + 1.5vw, 2rem);
       font-weight: 900;
-      font-style: italic;
       line-height: 1.1;
       margin: 0;
     }
 
-    .header-subtitle {
-      font-size: clamp(1rem, 0.85rem + 0.5vw, 1.25rem);
-      font-weight: 600;
+    .header-title {
+      font-size: clamp(1.6rem, 1.2rem + 2vw, 2.5rem);
+      font-weight: 400;
+      font-style: italic;
+      line-height: 1.1;
       opacity: 0.95;
       margin-top: 4px;
+    }
+
+    .header-pill {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 6px 20px;
+      border-radius: 999px;
+      font-size: clamp(0.7rem, 0.5rem + 0.5vw, 0.85rem);
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      border: 1.5px solid rgba(255,255,255,0.5);
     }
 
     /* -- Session dropdown in header -------------------------------------- */
@@ -869,12 +884,18 @@
         box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
       }
 
-      .header-title {
+      .header-org {
         font-size: 28px;
       }
 
-      .header-subtitle {
-        font-size: 18px;
+      .header-title {
+        font-size: 34px;
+      }
+
+      .header-pill {
+        font-size: 11px;
+        padding: 3px 14px;
+        margin-top: 4px;
       }
 
       /* ── Desktop summary banner ── */
@@ -1165,9 +1186,10 @@
 
   <!-- ── Header ──────────────────────────────────────────────────────── -->
   <header>
+    <div class="header-org">South Portland Metro APA</div>
     <h1 class="header-title">FinalStandings</h1>
-    <div class="header-subtitle">Tri-Annuals &amp; Playoffs</div>
-    <select class="session-select" id="sessionSelect" aria-label="Current session">
+    <div class="header-pill">Tri-Annuals &amp; Playoffs</div>
+    <select class="session-select" id="sessionSelect" aria-label="Current session" style="display:none;">
       <option value="" disabled selected>Loading...</option>
     </select>
   </header>
@@ -1934,7 +1956,8 @@
     try {
       var data = await callServer('getInitialData');
 
-      // Session dropdown
+      // Session dropdown — only show if multiple sessions exist
+      // Currently only one session, so hidden by default (style="display:none")
       if (data && data.sessionTitle) {
         var sessionSelect = document.getElementById('sessionSelect');
         sessionSelect.innerHTML = '';
@@ -1943,6 +1966,10 @@
         opt.textContent = data.sessionTitle;
         opt.selected = true;
         sessionSelect.appendChild(opt);
+        // Show only if there are 2+ options (future multi-session support)
+        if (sessionSelect.options.length > 1) {
+          sessionSelect.style.display = '';
+        }
       }
 
       // Division dropdown
