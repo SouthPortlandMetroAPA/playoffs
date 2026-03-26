@@ -710,12 +710,16 @@
       background: rgba(255, 152, 0, 0.06);
     }
 
-    /* Trophy note — inline after 1st place text */
+    /* Trophy sub-line — sits inside a .tri-line so it gets the green styling */
+    .tri-line.trophy-sub {
+      margin-top: -6px;
+      padding-top: 0;
+      border-top: none;
+    }
+
     .trophy-note {
       font-size: 0.75rem;
       color: var(--muted);
-      margin-left: 8px;
-      white-space: nowrap;
     }
 
     /* Ordinal column: fixed width, right-aligned so "1st" and "2nd" align */
@@ -1492,11 +1496,12 @@
     // First line gets a trophy sub-line — only 1st place earns the trophy
     var triLines = (data.triAnnualLines || []).map(function(l, idx) {
       var cols = splitLineToColumns(l);
+      var html = '<div class="tri-line">' + cols + '</div>';
       if (idx === 0) {
-        // Append trophy note inside the line, after the text
-        cols += '<span class="trophy-note">\uD83C\uDFC6 <em>and the trophy</em></span>';
+        // Trophy sub-line: same green styling, uses ordinal column for indent alignment
+        html += '<div class="tri-line trophy-sub"><span class="line-ordinal"></span><span class="line-rest trophy-note">\uD83C\uDFC6 <em>and the trophy</em></span></div>';
       }
-      return '<div class="tri-line">' + cols + '</div>';
+      return html;
     }).join('');
 
     triBox.innerHTML =
