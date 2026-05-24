@@ -1,643 +1,2328 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#ea002a">
-<title>Playoffs &mdash; SPM APA</title>
-<meta name="description" content="Tri-Annual advancement calculator for South Portland Metro APA divisions">
-<style>
-  :root {
-    --spm-red:        #ea002a;
-    --spm-accent:     #0031a1;
-    --text:           #111827;
-    --text-dim:       #6b7280;
-    --border:         #e5e7eb;
-    --border-strong:  #d1d5db;
-    --bg:             #f3f4f6;
-    --bg-card:        #ffffff;
-    --ok-bg:          #f0fdf4;
-    --ok-border:      #bbf7d0;
-    --ok-text:        #166534;
-    --accent-bg:      #eff6ff;
-    --accent-border:  #bfdbfe;
-    --radius:         14px;
-    --pill:           999px;
-  }
-  *, *::before, *::after { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    color: var(--text); background: var(--bg); line-height: 1.5;
-    min-height: 100vh; padding-bottom: 32px; -webkit-text-size-adjust: 100%;
-  }
+  <!--
+  ============================================================================
+  Playoffs — index.html (Standalone / GitHub Pages)
+  ============================================================================
 
-  .header {
-    background: linear-gradient(135deg, var(--spm-red) 0%, var(--spm-accent) 100%);
-    color: #fff; padding: 16px 18px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  }
-  .header-inner { max-width: 720px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .header h1 { font-size: 1.15rem; font-weight: 900; margin: 0; letter-spacing: -0.01em; display: inline-flex; align-items: center; gap: 8px; }
-  .header h1 .brand-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.25); }
-  .header .who { font-size: 0.78rem; opacity: 0.92; text-align: right; }
-  .header .who a { color: #fff; text-decoration: underline; cursor: pointer; opacity: 0.85; }
-  .header .who a:hover { opacity: 1; }
+  PURPOSE:
+    APA team advancement calculator. Players can look up their teams by APA#
+    or email, then select their Double Jeopardy division from a dropdown to
+    see tri-annual qualifiers, playoff bracket structure, and division size.
 
-  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+    Read-only viewer — no login, no write operations.
 
-  .card {
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 16px;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  }
-  .card h2 { margin: 0 0 12px; font-size: 1rem; font-weight: 800; }
-  .hint { color: var(--text-dim); font-size: 0.86rem; }
+  ARCHITECTURE:
+    Standalone build (go-forward stack). All CSS and JS are inline in this
+    single HTML file.
 
-  /* Identity input (compact, optional) */
-  .id-row { display: flex; gap: 8px; }
-  .id-input {
-    flex: 1; font: inherit; font-size: 1rem; padding: 11px 13px;
-    border: 1.5px solid var(--border-strong); border-radius: 10px;
-    background: #fff; color: var(--text);
-  }
-  .id-input:focus { outline: none; border-color: var(--spm-accent); }
-  .btn {
-    padding: 10px 16px; border-radius: var(--pill);
-    font-size: 0.9rem; font-weight: 800; border: 0; cursor: pointer;
-    font-family: inherit;
-  }
-  .btn-primary { background: var(--spm-accent); color: #fff; }
-  .btn-primary:hover:not(:disabled) { background: #0046cc; }
-  .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
-  .btn-outline { background: #fff; border: 1.5px solid var(--border-strong); color: var(--text); }
-  .btn-outline:hover { background: #f9fafb; }
-  .btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+    Frontend: GitHub Pages (southportlandmetroapa.github.io/playoffs/)
+        ↓ fetch() POST (Content-Type: text/plain, redirect: follow)
+    CORS Proxy: Cloudflare Worker (playoffs.spmapa.workers.dev)
+        ↓ forward POST
+    Backend: GAS doPost (Api.js → Code.js)
+        ↓
+    Data: Google Sheets (Tri-Annual Calculator spreadsheet)
 
-  /* Selectors row */
-  .selectors { display: grid; gap: 10px; }
-  @media (min-width: 540px) { .selectors { grid-template-columns: 1fr 2fr; } }
-  .selectors label {
-    display: block; font-size: 0.72rem; font-weight: 800;
-    color: var(--spm-accent); text-transform: uppercase; letter-spacing: 0.06em;
-    margin-bottom: 4px;
-  }
-  .selectors select {
-    width: 100%; font: inherit; font-size: 1rem;
-    padding: 11px 12px; border: 1.5px solid var(--border-strong);
-    border-radius: 10px; background: #fff; color: var(--text);
-  }
-  .selectors select:focus { outline: none; border-color: var(--spm-accent); }
+    Content-Type: text/plain avoids CORS preflight on most browsers.
+    redirect: 'follow' handles GAS's 302 redirect after doPost.
 
-  /* Player team cards */
-  .my-teams { display: grid; gap: 8px; margin-top: 6px; }
-  .team-card {
-    background: var(--bg-card); border: 1.5px solid var(--border);
-    border-radius: 12px; padding: 12px 14px;
-    cursor: pointer; text-align: left; font-family: inherit;
-    display: flex; align-items: center; gap: 12px;
-    transition: box-shadow 0.14s, border-color 0.14s;
-  }
-  .team-card:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-color: var(--border-strong); }
-  .team-card .tc-icon {
-    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
-    background: linear-gradient(135deg, var(--spm-red), var(--spm-accent));
-    color: #fff; display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 0.78rem;
-  }
-  .team-card .tc-text { flex: 1; min-width: 0; }
-  .team-card .tc-name { font-size: 0.98rem; font-weight: 800; }
-  .team-card .tc-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
-  .team-card .tc-arrow { color: var(--text-dim); font-size: 1.1rem; }
+  MAINTENANCE MODE:
+    On load, calls getMaintenanceMode. If enabled and the URL lacks a
+    matching ?key= bypass parameter, the page replaces its body with a
+    maintenance message. Fails open (if the check errors, the page loads
+    normally — never blocks users due to a backend hiccup).
 
-  /* Advancement result */
-  .result-card {
-    background: var(--bg-card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 18px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  }
-  .result-header { margin-bottom: 14px; }
-  .result-divnums { font-size: 0.78rem; color: var(--text-dim); font-weight: 700; }
-  .result-divname { font-size: 1.3rem; font-weight: 900; letter-spacing: -0.01em; line-height: 1.2; margin-top: 2px; }
-  .result-fmt { font-size: 0.82rem; color: var(--text-dim); margin-top: 4px; }
+  PLAYER LOOKUP:
+    Compact search bar (MultiPass-style login bar) between header and
+    division dropdown. Calls lookupPlayer with APA# or email. On success,
+    shows player name and team/division cards. Division names in cards are
+    clickable — they auto-select the matching dropdown option and trigger
+    the division lookup.
 
-  .summary-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
-    margin: 14px 0;
-  }
-  .summary-cell {
-    background: var(--accent-bg); border: 1px solid var(--accent-border);
-    border-radius: 10px; padding: 10px 8px; text-align: center;
-  }
-  .summary-cell .num {
-    font-size: 1.8rem; font-weight: 900; color: var(--spm-accent); line-height: 1;
-  }
-  .summary-cell .lbl {
-    font-size: 0.7rem; font-weight: 700; color: var(--text-dim);
-    text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px;
-  }
+  ============================================================================
+  -->
+  <title>Playoffs — South Portland Metro APA</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* ======================================================================
+       CSS — Mobile-first responsive design (PatchCheck affordance patterns)
+       ======================================================================
+       Mobile-first: base styles are mobile.
+       Tablet: @media (min-width: 768px) and (max-width: 1199px)
+       Desktop: @media (min-width: 1200px)
+       ====================================================================== */
 
-  .section {
-    margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border);
-  }
-  .section h3 {
-    margin: 0 0 8px; font-size: 0.78rem; font-weight: 800;
-    color: var(--spm-accent); text-transform: uppercase; letter-spacing: 0.06em;
-  }
-  .lines { display: flex; flex-direction: column; gap: 6px; }
-  .line {
-    background: var(--bg); border-radius: 8px; padding: 8px 10px;
-    font-size: 0.92rem; font-weight: 600;
-  }
-  .line.qualify { background: var(--ok-bg); border: 1px solid var(--ok-border); color: var(--ok-text); }
+    :root {
+      /* -- APA branding colors -- */
+      --spm-primary: #ea002a;
+      --spm-accent: #0031a1;
 
-  .warnings {
-    margin-top: 12px; background: #fefce8; border: 1px solid #fde68a;
-    border-radius: 10px; padding: 10px 12px;
-  }
-  .warnings .wlbl {
-    font-size: 0.7rem; font-weight: 800; color: #92400e;
-    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;
-  }
-  .warnings .w { font-size: 0.86rem; color: #78350f; }
+      /* -- Neutral palette -- */
+      --bg: #f5f5f5;
+      --card: #ffffff;
+      --border: #e1e1e1;
+      --text: #1f1f1f;
+      --muted: #666;
 
-  .status { font-size: 0.86rem; padding: 8px 12px; border-radius: 8px; margin-top: 8px; }
-  .status.progress { background: var(--accent-bg); color: var(--spm-accent); }
-  .status.error    { background: #fef2f2; color: #dc2626; }
+      /* -- Result box colors -- */
+      --ok-bg: #e8f5e9;
+      --ok-border: #a5d6a7;
+      --warn-bg: #fff8e1;
+      --warn-border: #ffe082;
+      --err-bg: #ffebee;
+      --err-border: #ef9a9a;
+    }
 
-  .update-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
-    display: none; z-index: 300;
-    align-items: center; justify-content: center; padding: 16px;
-  }
-  .update-overlay.open { display: flex; }
-  .uo-card {
-    background: #fff; padding: 22px 26px; border-radius: var(--radius);
-    text-align: center; max-width: 360px;
-  }
+    /* -- Reset ------------------------------------------------------------ */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  .spinner {
-    display: inline-block; width: 16px; height: 16px;
-    border: 2px solid currentColor; border-right-color: transparent;
-    border-radius: 50%; animation: spin 0.7s linear infinite;
-    vertical-align: -3px; margin-right: 8px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-</style>
+    /* -- Base (mobile-first) ---------------------------------------------- */
+    html, body {
+      width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      /* Hidden until maintenance check passes */
+      visibility: hidden;
+    }
+
+    /* -- Page wrapper (mobile: full-width with generous padding) ----------- */
+    .page {
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* -- Header ---------------------------------------------------------- */
+    header {
+      width: 100%;
+      border-radius: 16px;
+      padding: 22px 20px 20px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header-org {
+      font-size: clamp(1.4rem, 1rem + 1.5vw, 2rem);
+      font-weight: 900;
+      line-height: 1.1;
+      margin: 0;
+    }
+
+    .header-title {
+      font-size: clamp(1.6rem, 1.2rem + 2vw, 2.5rem);
+      font-weight: 400;
+      font-style: italic;
+      line-height: 1.1;
+      opacity: 0.95;
+      margin-top: 4px;
+    }
+
+    .header-pill {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 6px 20px;
+      border-radius: 999px;
+      font-size: clamp(0.7rem, 0.5rem + 0.5vw, 0.85rem);
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      border: 1.5px solid rgba(255,255,255,0.5);
+    }
+
+    /* -- Session dropdown in header -------------------------------------- */
+    .session-select {
+      margin-top: 8px;
+      padding: 4px 12px;
+      font-size: 0.875rem;
+      font-family: inherit;
+      font-weight: 600;
+      color: #fff;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 999px;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      text-align: center;
+      outline: none;
+      opacity: 0.9;
+    }
+
+    .session-select option {
+      color: var(--text);
+      background: var(--card);
+    }
+
+    .session-select:focus {
+      border-color: #fff;
+      opacity: 1;
+    }
+
+    /* =====================================================================
+       PLAYER LOOKUP BAR — Mobile: stacked; Desktop: horizontal row
+       ===================================================================== */
+    .lookup-bar {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto 16px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    .lookup-bar .lookup-input {
+      width: 100%;
+      min-width: 0;
+      padding: 12px 16px;
+      font-size: 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-family: inherit;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      /* 48px min tap target */
+      min-height: 48px;
+    }
+
+    .lookup-bar .lookup-input:focus {
+      border-color: var(--spm-accent);
+      box-shadow: 0 0 0 3px rgba(0, 49, 161, 0.15);
+    }
+
+    .lookup-bar .lookup-btn {
+      width: 100%;
+      padding: 12px 20px;
+      border: none;
+      border-bottom: 3px solid rgba(0, 0, 0, 0.25);
+      border-radius: 12px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(0,0,0,0.10) 100%),
+        linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
+      color: #fff;
+      font-weight: 900;
+      font-size: 1rem;
+      letter-spacing: 0.1em;
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.35),
+        0 4px 10px rgba(0, 0, 0, 0.30);
+      cursor: pointer;
+      font-family: inherit;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      white-space: nowrap;
+      /* 48px min tap target */
+      min-height: 48px;
+    }
+
+    .lookup-bar .lookup-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .lookup-bar .lookup-btn:active:not(:disabled) {
+      transform: translateY(2px);
+      border-bottom-width: 1px;
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.15),
+        0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+
+    /* -- Lookup status text ----------------------------------------------- */
+    .lookup-status {
+      text-align: center;
+      color: var(--muted);
+      min-height: 1.5em;
+      margin-bottom: 8px;
+      font-size: 0.875rem;
+    }
+
+    /* -- Player results section ------------------------------------------- */
+    .player-results {
+      display: none;
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto 16px;
+    }
+
+    .player-name {
+      text-align: center;
+      font-size: 1.0625rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .player-pills {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .player-pill {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 20px;
+      border: 2px solid var(--spm-accent);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--spm-accent);
+      font-weight: 800;
+      font-size: 0.9375rem;
+      letter-spacing: 0.02em;
+      font-family: inherit;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      min-height: 48px;
+      box-shadow: 0 2px 8px rgba(0, 49, 161, 0.12);
+    }
+
+    .player-pill::after {
+      content: '→';
+      font-size: 1.1em;
+      opacity: 0.5;
+      flex-shrink: 0;
+    }
+
+    .player-pill:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 14px rgba(0, 49, 161, 0.2);
+      background: rgba(0, 49, 161, 0.04);
+    }
+
+    .player-pill .pill-night {
+      font-weight: 400;
+      font-size: 0.8125rem;
+      opacity: 0.85;
+    }
+
+    .browse-all-btn {
+      display: block;
+      margin: 12px auto 0;
+      padding: 8px 16px;
+      background: none;
+      border: none;
+      color: var(--spm-accent);
+      font-family: inherit;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      text-underline-offset: 2px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .player-pill:active,
+    .player-pill.active {
+      background: var(--spm-accent);
+      border-color: var(--spm-accent);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0, 49, 161, 0.3);
+    }
+
+    .player-pill.active::after {
+      opacity: 0.7;
+    }
+
+    .player-pill.active .pill-night {
+      opacity: 0.85;
+    }
+
+    /* -- Intro text ------------------------------------------------------ */
+    .lead {
+      text-align: center;
+      color: var(--muted);
+      margin-bottom: 16px;
+      font-size: 0.9375rem;
+    }
+
+    /* -- Division selector (custom dropdown) ------------------------------ */
+    .selector-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    /* Hidden native select — still in DOM for programmatic access */
+    .division-select {
+      display: none;
+    }
+
+    .custom-dropdown {
+      width: 100%;
+      max-width: 480px;
+      position: relative;
+    }
+
+    .custom-dropdown-trigger {
+      width: 100%;
+      padding: 12px 40px 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      min-height: 48px;
+      text-align: center;
+      position: relative;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.2s;
+    }
+
+    .custom-dropdown-trigger::after {
+      content: '';
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid var(--muted);
+      transition: transform 0.2s;
+    }
+
+    .custom-dropdown.open .custom-dropdown-trigger::after {
+      transform: translateY(-50%) rotate(180deg);
+    }
+
+    .custom-dropdown-trigger .trigger-placeholder {
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .custom-dropdown-trigger .trigger-night {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 400;
+      line-height: 1.2;
+    }
+
+    .custom-dropdown-trigger .trigger-name {
+      display: block;
+      font-weight: 700;
+      font-size: 0.9375rem;
+      line-height: 1.3;
+    }
+
+    .custom-dropdown-panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      max-height: 320px;
+      overflow-y: auto;
+      z-index: 100;
+      padding: 4px 0;
+    }
+
+    .custom-dropdown.open .custom-dropdown-panel {
+      display: block;
+    }
+
+    .custom-dropdown-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.15s;
+      text-align: center;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .custom-dropdown-item:hover {
+      background: rgba(0, 49, 161, 0.06);
+    }
+
+    .custom-dropdown-item.selected {
+      background: rgba(0, 49, 161, 0.08);
+    }
+
+    .custom-dropdown-item .item-name {
+      font-weight: 700;
+      font-size: 0.9375rem;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    /* Day-of-week section header in dropdown */
+    .custom-dropdown-day-header {
+      padding: 10px 16px 4px;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      text-align: center;
+    }
+
+    /* -- Summary Banner --------------------------------------------------- */
+    .summary-banner {
+      max-width: 480px;
+      margin: 0 auto 20px;
+      text-align: center;
+    }
+
+    .summary-banner-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .summary-circles {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .summary-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .summary-circle {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 900;
+    }
+
+    .summary-circle-8 {
+      background: #1a1a1a;
+      color: #fff;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+    }
+
+    .summary-circle-9 {
+      background: #f5c518;
+      color: #1a1a1a;
+      box-shadow: 0 3px 10px rgba(245,197,24,0.4);
+    }
+
+    .summary-circle-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* -- Status text ----------------------------------------------------- */
+    .status {
+      text-align: center;
+      color: var(--muted);
+      min-height: 1.5em;
+      margin-bottom: 12px;
+      font-size: 0.9375rem;
+    }
+
+    /* -- Result cards (mobile: full-width, generous padding) --------------- */
+    .results {
+      display: none;
+    }
+
+    .box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 20px 18px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+      margin-bottom: 16px;
+      text-align: center;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .box-neutral {
+      background: var(--bg);
+      box-shadow: none;
+    }
+
+    .box-ok {
+      /* inherits .box card style — white card, shadow, rounded */
+    }
+
+    .box-warn {
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+    }
+
+    .box-err {
+      background: var(--err-bg);
+      border: 1px solid var(--err-border);
+    }
+
+    /* Grid container for tri + playoff cards */
+    .advancement-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    /* Remove individual margin from boxes inside grid */
+    .advancement-grid .box {
+      margin-bottom: 0;
+    }
+
+    .box h2 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .box .detail {
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: #333;
+      display: inline-block;
+      text-align: left;
+    }
+
+    .box {
+      text-align: center;
+    }
+
+    .box .detail div {
+      margin-bottom: 4px;
+    }
+
+    /* Bold ordinals and "wildcard" in playoff lines */
+    .box .detail strong {
+      font-weight: 700;
+      color: var(--spm-accent);
+    }
+
+    /* -- Division info: floating centered element (no box) ---------------- */
+    .division-info-floating {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .division-info-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .team-count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
+      color: #fff;
+      font-size: 1.25rem;
+      font-weight: 900;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    }
+
+    /* Smaller text for team name in badge */
+    .team-count-badge.badge-team-name {
+      font-size: 0.625rem;
+      padding: 4px;
+      text-align: center;
+      line-height: 1.1;
+      word-break: break-word;
+    }
+
+    .division-info-text {
+      font-weight: 700;
+      font-size: 1.0625rem;
+    }
+
+    /* -- Tri-Annual qualifier lines -------------------------------------- */
+    .tri-line, .playoff-line {
+      display: flex;
+      align-items: baseline;
+      padding: 8px 12px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 6px;
+    }
+
+    .tri-line {
+      border-left: 4px solid #4caf50;
+      background: rgba(76, 175, 80, 0.06);
+    }
+
+    .playoff-line {
+      border-left: 4px solid #ff9800;
+      background: rgba(255, 152, 0, 0.06);
+    }
+
+    /* Trophy sub-line — sits inside a .tri-line so it gets the green styling */
+    .tri-line.trophy-sub {
+      margin-top: -6px;
+      padding-top: 0;
+      border-top: none;
+    }
+
+    .trophy-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* Ordinal column: fixed width, right-aligned so "1st" and "2nd" align */
+    .line-ordinal {
+      display: inline-block;
+      width: 2.5em;
+      text-align: right;
+      font-weight: 700;
+      color: var(--spm-accent);
+      flex-shrink: 0;
+      margin-right: 0.4em;
+    }
+
+    /* Rest of line: left-aligned from the keyword column */
+    .line-rest {
+      text-align: left;
+    }
+
+    /* -- Position circles ------------------------------------------------ */
+    .pos-circle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #fff;
+      margin-right: 8px;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .pos-circle-green {
+      background: #4caf50;
+    }
+
+    .pos-circle-amber {
+      background: #ff9800;
+    }
+
+    /* -- Result pills stack (mobile: stacked vertically) ------------------- */
+    .result-info-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      margin-bottom: 16px;
+    }
+
+    /* Team name — large, bold, gradient text */
+    .result-team-name {
+      font-size: 1.3rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+    }
+
+    /* Division name — medium, muted */
+    .result-division-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    /* Team count — small label */
+    .result-team-count {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      opacity: 0.7;
+    }
+
+    /* -- Footer note ----------------------------------------------------- */
+    .footer-note {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: none;
+    }
+
+    /* -- Loading skeleton ------------------------------------------------ */
+    .skeleton {
+      display: none;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .skeleton-pill {
+      display: inline-block;
+      width: 200px;
+      height: 20px;
+      background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+      background-size: 200% 100%;
+      border-radius: 4px;
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* =====================================================================
+       TABLET — @media (min-width: 768px) and (max-width: 1199px)
+       =====================================================================
+       Same stacked layout as mobile, slightly tighter spacing,
+       wider max-width.
+       ===================================================================== */
+    @media (min-width: 768px) and (max-width: 1199px) {
+      .page {
+        max-width: 660px;
+        padding: 20px;
+      }
+
+      header {
+        border-radius: 14px;
+        padding: 20px 22px 18px;
+        margin-bottom: 16px;
+      }
+
+      .lookup-bar {
+        max-width: 560px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        flex-direction: row;
+        align-items: center;
+      }
+
+      .lookup-bar .lookup-input {
+        flex: 1;
+        width: auto;
+        min-height: 44px;
+        padding: 10px 14px;
+        font-size: 0.9375rem;
+      }
+
+      .lookup-bar .lookup-btn {
+        width: auto;
+        flex-shrink: 0;
+        min-height: 44px;
+        padding: 10px 20px;
+        font-size: 0.9375rem;
+      }
+
+      .player-results {
+        max-width: 560px;
+      }
+
+      .player-pills {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .player-pill {
+        width: auto;
+      }
+
+      .custom-dropdown {
+        max-width: 560px;
+      }
+
+      .summary-banner {
+        max-width: 560px;
+      }
+
+      .box {
+        padding: 20px 24px;
+      }
+
+      /* Tri + Playoff still stacked on tablet */
+      .advancement-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* =====================================================================
+       DESKTOP — @media (min-width: 1200px)
+       =====================================================================
+       PatchCheck-inspired: compact density, hover lift, horizontal search,
+       darker background for card contrast.
+       ===================================================================== */
+    @media (min-width: 1200px) {
+      /* Darker background for card contrast */
+      html, body {
+        background: #e8e8e8;
+        font-size: 14px;
+      }
+
+      .page {
+        max-width: 900px;
+        padding: 16px 24px;
+      }
+
+      /* ── Desktop header ── */
+      header {
+        border-radius: 12px;
+        padding: 18px 24px 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      .header-org {
+        font-size: 28px;
+      }
+
+      .header-title {
+        font-size: 34px;
+      }
+
+      .header-pill {
+        font-size: 11px;
+        padding: 3px 14px;
+        margin-top: 4px;
+      }
+
+      /* ── Desktop summary banner ── */
+      .summary-banner {
+        max-width: 900px;
+        margin-bottom: 12px;
+      }
+
+      .summary-banner-label {
+        font-size: 0.7rem;
+        margin-bottom: 8px;
+      }
+
+      .summary-circles {
+        gap: 32px;
+      }
+
+      .summary-circle {
+        width: 52px;
+        height: 52px;
+        font-size: 1.25rem;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .summary-circle:hover {
+        transform: translateY(-2px);
+      }
+
+      .summary-circle-label {
+        font-size: 0.65rem;
+      }
+
+      /* ── Desktop search — horizontal row ── */
+      .lookup-bar {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        max-width: 900px;
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 12px;
+      }
+
+      .lookup-bar .lookup-input {
+        flex: 1;
+        width: auto;
+        font-size: 14px;
+        padding: 8px 14px;
+        text-align: left;
+        min-height: 36px;
+        border-radius: 8px;
+      }
+
+      .lookup-bar .lookup-btn {
+        width: auto;
+        flex-shrink: 0;
+        margin-top: 0;
+        padding: 8px 22px;
+        font-size: 13px;
+        letter-spacing: 0.06em;
+        min-height: 36px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .lookup-bar .lookup-btn:hover:not(:disabled) {
+        filter: brightness(1.1);
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+      }
+
+      /* ── Desktop player results ── */
+      .player-results {
+        max-width: 900px;
+      }
+
+      .player-name {
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+
+      .player-pills {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .player-pill {
+        width: auto;
+        padding: 8px 18px;
+        font-size: 13px;
+        min-height: 36px;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+
+      .player-pill:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(234, 0, 42, 0.25), 0 4px 10px rgba(0, 49, 161, 0.18);
+      }
+
+      .browse-all-btn {
+        min-height: 32px;
+        font-size: 12px;
+      }
+
+      /* ── Desktop lead text ── */
+      .lead {
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+
+      /* ── Desktop dropdown ── */
+      .custom-dropdown {
+        max-width: 400px;
+      }
+
+      .custom-dropdown-trigger {
+        padding: 10px 36px 10px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        min-height: 40px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      }
+
+      .custom-dropdown-trigger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        border-color: var(--spm-accent);
+      }
+
+      .custom-dropdown-panel {
+        border-radius: 10px;
+      }
+
+      .custom-dropdown-item {
+        padding: 8px 14px;
+        min-height: 36px;
+        font-size: 13px;
+        transition: background 0.15s;
+      }
+
+      .custom-dropdown-item:hover {
+        background: rgba(0, 49, 161, 0.08);
+      }
+
+      .custom-dropdown-item .item-name {
+        font-size: 13px;
+      }
+
+      .custom-dropdown-day-header {
+        padding: 8px 14px 3px;
+        font-size: 0.625rem;
+      }
+
+      /* ── Desktop status ── */
+      .status {
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+
+      .lookup-status {
+        font-size: 13px;
+      }
+
+      /* ── Desktop result cards ── */
+      .box {
+        border-radius: 12px;
+        padding: 16px 20px 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .box:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+      }
+
+      .box h2 {
+        font-size: 1rem;
+        margin-bottom: 6px;
+      }
+
+      .box .detail {
+        font-size: 14px;
+      }
+
+      /* Tri + Playoff: side by side in 2-column grid */
+      .advancement-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+
+      .advancement-grid .box {
+        margin-bottom: 0;
+      }
+
+      /* ── Desktop result info — horizontal on desktop ── */
+      .result-info-stack {
+        flex-direction: row;
+        justify-content: center;
+        gap: 16px;
+        align-items: baseline;
+      }
+
+      .result-team-name {
+        font-size: 1.1rem;
+      }
+
+      .result-division-name {
+        font-size: 0.9rem;
+      }
+
+      .result-team-count {
+        font-size: 0.8rem;
+      }
+
+      /* ── Desktop division info ── */
+      .division-info-floating {
+        margin-bottom: 12px;
+      }
+
+      .team-count-badge {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+      }
+
+      .division-info-text {
+        font-size: 15px;
+      }
+
+      /* ── Desktop tri/playoff lines ── */
+      .tri-line,
+      .playoff-line {
+        padding: 6px 10px;
+        font-size: 13px;
+        margin-bottom: 4px;
+        border-radius: 0 6px 6px 0;
+      }
+
+      /* ── Desktop footer ── */
+      .footer-note {
+        margin-top: 12px;
+        font-size: 0.6875rem;
+      }
+
+      /* ── Desktop skeleton ── */
+      .skeleton {
+        padding: 16px;
+      }
+    }
+
+    /* -- Hover states (non-touch devices only) --------------------------- */
+    @media (hover: hover) {
+      .custom-dropdown-trigger:hover {
+        border-color: var(--spm-accent);
+      }
+
+      .lookup-bar .lookup-btn:hover:not(:disabled) {
+        box-shadow:
+          inset 0 1px 1px rgba(255, 255, 255, 0.35),
+          0 6px 14px rgba(0, 0, 0, 0.35);
+      }
+
+      .player-pill:hover {
+        background: linear-gradient(135deg, var(--spm-primary), var(--spm-accent));
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(234, 0, 42, 0.3), 0 2px 6px rgba(0, 49, 161, 0.2);
+      }
+    }
+  </style>
 </head>
+
 <body>
+<div class="page">
 
-<header class="header">
-  <div class="header-inner">
-    <h1><span class="brand-dot"></span>Playoffs</h1>
-    <div class="who" id="whoBlock"></div>
-  </div>
-</header>
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header>
+    <div class="header-org">South Portland Metro APA</div>
+    <h1 class="header-title">Playoffs</h1>
+    <div class="header-pill">Who Plays Who?</div>
+    <select class="session-select" id="sessionSelect" aria-label="Current session" style="display:none;">
+      <option value="" disabled selected>Loading...</option>
+    </select>
+  </header>
 
-<main>
-  <!-- Identity (optional — for "show my teams" quick-pick) -->
-  <div class="card" id="idCard">
-    <h2>Find your teams (optional)</h2>
-    <p class="hint" style="margin: 0 0 10px;">
-      Enter your APA number (8-digit, or 5-digit local form) or the email APA has on file. We'll show buttons for your teams — tap one to jump straight to its advancement details.
-    </p>
-    <div class="id-row">
-      <input id="idInput" class="id-input" type="text" inputmode="text" autocomplete="off"
-        placeholder="APA# (8 or 5 digit) or email" autocapitalize="none" autocorrect="off">
-      <button class="btn btn-primary" id="idGo">Find</button>
-    </div>
-    <div id="idStatus" style="margin-top:10px;"></div>
-    <div id="myTeams" class="my-teams"></div>
-  </div>
-
-  <!-- Session + Division pickers -->
-  <div class="card">
-    <h2>Pick a division</h2>
-    <p class="hint" style="margin:0 0 12px;">
-      Default is the current session. Switch sessions to see advancement for past or upcoming sessions.
-    </p>
-    <div class="selectors">
-      <div>
-        <label for="sessionSelect">Session</label>
-        <select id="sessionSelect"></select>
+  <!-- ── Summary Banner ────────────────────────────────────────────── -->
+  <div class="summary-banner" id="summaryBanner" style="display:none;">
+    <div class="summary-banner-label">Teams Advancing to Tri-Annuals</div>
+    <div class="summary-circles">
+      <div class="summary-item">
+        <div class="summary-circle summary-circle-8" id="summary8circle">&mdash;</div>
+        <div class="summary-circle-label">8-Ball</div>
       </div>
-      <div>
-        <label for="divisionSelect">Division</label>
-        <select id="divisionSelect"></select>
+      <div class="summary-item">
+        <div class="summary-circle summary-circle-9" id="summary9circle">&mdash;</div>
+        <div class="summary-circle-label">9-Ball</div>
       </div>
     </div>
-    <div id="loadStatus" style="margin-top:8px;"></div>
   </div>
 
-  <!-- Result -->
-  <div id="resultRoot"></div>
-</main>
+  <!-- ── Player Lookup Bar ─────────────────────────────────────────── -->
+  <form class="lookup-bar" id="lookupForm" autocomplete="off">
+    <input
+      class="lookup-input"
+      id="lookupInput"
+      type="text"
+      placeholder="APA # or Email"
+      aria-label="APA number or email address"
+      inputmode="text"
+    />
+    <button class="lookup-btn" id="lookupBtn" type="submit">FIND ME</button>
+  </form>
 
-<div class="update-overlay" id="updateOverlay">
-  <div class="uo-card">
-    <h2 style="margin:0 0 8px;font-size:1.05rem;">New version available</h2>
-    <p style="margin:0;">Reloading…</p>
+  <!-- ── Lookup status ─────────────────────────────────────────────── -->
+  <div class="lookup-status" id="lookupStatus"></div>
+
+  <!-- ── Player results (between search bar and division dropdown) ── -->
+  <div class="player-results" id="playerResults"></div>
+
+  <!-- ── Division dropdown ───────────────────────────────────────────── -->
+  <div class="selector-wrap">
+    <!-- Hidden native select kept for programmatic compatibility -->
+    <select class="division-select" id="divisionSelect" aria-label="Select a division">
+      <option value="" disabled selected>Select a division...</option>
+    </select>
+    <!-- Custom two-line dropdown -->
+    <div class="custom-dropdown" id="customDropdown">
+      <button type="button" class="custom-dropdown-trigger" id="customDropdownTrigger">
+        <span class="trigger-placeholder">Select a division...</span>
+      </button>
+      <div class="custom-dropdown-panel" id="customDropdownPanel"></div>
+    </div>
   </div>
+
+  <!-- ── Status ──────────────────────────────────────────────────────── -->
+  <div class="status" id="status"></div>
+
+  <!-- ── Loading skeleton ────────────────────────────────────────────── -->
+  <div class="skeleton" id="skeleton">
+    <div class="skeleton-pill"></div>
+  </div>
+
+  <!-- ── Results ─────────────────────────────────────────────────────── -->
+  <div class="results" id="results">
+    <div class="division-info-floating" id="divisionBox"></div>
+    <div class="advancement-grid" id="advancementGrid">
+      <div class="box box-ok" id="triBox"></div>
+      <div class="box box-ok" id="playoffBox"></div>
+    </div>
+    <div class="box box-warn" id="warningBox" style="display:none;"></div>
+    <div class="box box-err" id="errorBox" style="display:none;"></div>
+  </div>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────── -->
+  <div class="footer-note" id="footerNote"></div>
+
 </div>
 
-<script src="version.js?_=__TS__"></script>
 <script>
-(function(){
-  const s = document.currentScript.previousElementSibling;
-  if (s && s.src.indexOf('__TS__') !== -1) s.src = s.src.replace('__TS__', Date.now());
-})();
-</script>
+  // ======================================================================
+  // JavaScript — Playoffs standalone frontend
+  // ======================================================================
+  //
+  // Flow:
+  //   1. DOMContentLoaded → maintenance mode check
+  //   2. If maintenance passes → fetch initial data (session + divisions)
+  //   3. Populate dropdown (grouped by division name, sorted by number)
+  //   4. Player lookup form → callServer('lookupPlayer') → render cards
+  //      - Division names in cards are clickable if they match a dropdown
+  //        option — clicking auto-selects that division and triggers lookup
+  //   5. On dropdown change → fetch advancement info → render result cards
+  //
+  // All API calls go through callServer() which handles:
+  //   - Content-Type: text/plain (avoids CORS preflight)
+  //   - redirect: 'follow' (handles GAS 302)
+  //   - JSON parse + error handling
+  // ======================================================================
 
-<script>
-/* ════════════════════════════════════════════════════════════════════════
-   Playoffs v2.0 — Slate-native tri-annual advancement calculator.
+  // ── Supabase (Slate-native) data layer ────────────────────────────────
+  // Replaces the legacy GAS+worker backend in v2.0. The UI code below is
+  // unchanged — callServer() still routes by action name; only the body
+  // talks to Supabase REST + Slate RPCs instead of the Worker proxy.
 
-   Replaces the legacy GAS+Sheets architecture with a direct Supabase
-   read. Reads slate.sessions for the session dropdown, slate.divisions
-   for division lookup, slate.triannual_rules via slate.triannual_lookup
-   RPC for the advancement formula. Player lookup reuses the
-   papertrail_lookup_player RPC; their teams in any session via
-   slate.player_teams_for_session.
+  var SB_URL  = 'https://dqzbekoaysgaiqljueac.supabase.co';
+  var SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxemJla29heXNnYWlxbGp1ZWFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNzA5NzgsImV4cCI6MjA5MDc0Njk3OH0.cCdGxZ4zEFzU_r6lWSDeoNWG67Q4MSYCAtpds035dfU';
+  var SPM_OPERATOR_ID = 1;
 
-   Read-only. No login. No worker proxy. No spreadsheet.
-   ════════════════════════════════════════════════════════════════════════ */
+  // Currently selected session id. Set during getInitialData() — can be
+  // overridden by passing { sessionId } to subsequent getInitialData
+  // calls (which is what the sessionSelect change handler does).
+  var _currentSessionId = null;
 
-const APP_NAME = 'Playoffs';
-const SB_URL   = 'https://dqzbekoaysgaiqljueac.supabase.co';
-const SB_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRxemJla29heXNnYWlxbGp1ZWFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNzA5NzgsImV4cCI6MjA5MDc0Njk3OH0.cCdGxZ4zEFzU_r6lWSDeoNWG67Q4MSYCAtpds035dfU';
+  // Cached divisions for the currently loaded session — used by
+  // lookupDivisionInfo() to resolve the picked dropdown value back to
+  // a real division row without re-querying.
+  var _divisionsBySession = {};   // session_id → array of rows
 
-const state = {
-  identity:    null,     // { apa_number, name, email } when looked up
-  sessions:    [],
-  sessionId:   null,
-  divisions:   [],
-  myTeams:     [],
-  selectedDivisionId: null
-};
+  // Global: stores the team name when a player pill is clicked
+  var _clickedTeamName = null;
 
-/* ── Supabase helpers ──────────────────────────────────────────────── */
-function headers(schema, write) {
-  const h = {
-    apikey: SB_ANON,
-    Authorization: 'Bearer ' + SB_ANON,
-    'Accept-Profile': schema
-  };
-  if (write) {
-    h['Content-Type'] = 'application/json';
-    h['Content-Profile'] = schema;
-  }
-  return h;
-}
-async function sbGet(schema, path) {
-  const r = await fetch(SB_URL + '/rest/v1/' + path, { headers: headers(schema, false) });
-  if (!r.ok) throw new Error(`${schema}.${path}: ${r.status} ${(await r.text()).slice(0,200)}`);
-  return r.json();
-}
-async function sbRpc(schema, fn, body) {
-  const r = await fetch(SB_URL + '/rest/v1/rpc/' + fn, {
-    method: 'POST', headers: headers(schema, true),
-    body: JSON.stringify(body || {})
-  });
-  if (!r.ok) throw new Error(`${schema}.${fn}: ${r.status} ${(await r.text()).slice(0,200)}`);
-  return r.json();
-}
-
-/* ── Identity persistence (across page loads) ──────────────────────── */
-function loadIdentity() {
-  try {
-    const raw = localStorage.getItem('playoffs.identity');
-    if (raw) state.identity = JSON.parse(raw);
-  } catch (_) {}
-}
-function saveIdentity(id) {
-  state.identity = id;
-  try { localStorage.setItem('playoffs.identity', JSON.stringify(id)); } catch (_) {}
-}
-function clearIdentity() {
-  state.identity = null;
-  state.myTeams = [];
-  try { localStorage.removeItem('playoffs.identity'); } catch (_) {}
-}
-
-function renderHeaderWho() {
-  const el = document.getElementById('whoBlock');
-  if (!state.identity) { el.innerHTML = ''; return; }
-  el.innerHTML = esc(state.identity.name) + ' &middot; <a id="switchBtn">Switch player</a>';
-  document.getElementById('switchBtn').onclick = () => {
-    clearIdentity(); renderHeaderWho();
-    document.getElementById('myTeams').innerHTML = '';
-    document.getElementById('idStatus').innerHTML = '';
-    document.getElementById('idInput').value = '';
-  };
-}
-
-/* ── Identity card ─────────────────────────────────────────────────── */
-async function tryLookup() {
-  const inp = document.getElementById('idInput');
-  const go  = document.getElementById('idGo');
-  const st  = document.getElementById('idStatus');
-  const v = inp.value.trim();
-  if (!v) { inp.focus(); return; }
-  go.disabled = true;
-  st.innerHTML = '<div class="status progress"><span class="spinner"></span>Looking up…</div>';
-  try {
-    const rows = await sbRpc('slate', 'papertrail_lookup_player', { input: v });
-    const p = (rows && rows[0]) || null;
-    if (!p) {
-      st.innerHTML = '<div class="status error">Couldn’t find that ' +
-        (v.includes('@') ? 'email' : 'APA#') + '. Double-check and try again.</div>';
-      go.disabled = false; return;
+  // ── sbHeaders / sbGet / sbRpc — small fetch helpers ───────────────────
+  function _sbHeaders(schema, write) {
+    var h = {
+      apikey: SB_ANON,
+      Authorization: 'Bearer ' + SB_ANON,
+      'Accept-Profile': schema
+    };
+    if (write) {
+      h['Content-Type'] = 'application/json';
+      h['Content-Profile'] = schema;
     }
-    saveIdentity({ apa_number: p.apa_number, name: p.name, email: p.email });
-    st.innerHTML = '';
-    inp.value = '';
-    renderHeaderWho();
-    await loadMyTeamsForSession();
-  } catch (e) {
-    st.innerHTML = '<div class="status error">Lookup failed: ' + esc(e.message) + '</div>';
+    return h;
   }
-  go.disabled = false;
-}
-
-async function loadMyTeamsForSession() {
-  const el = document.getElementById('myTeams');
-  el.innerHTML = '';
-  if (!state.identity || !state.sessionId) return;
-  try {
-    const teams = await sbRpc('slate', 'player_teams_for_session', {
-      p_apa_number: state.identity.apa_number, p_session_id: state.sessionId
+  function sbGet(schema, path) {
+    return fetch(SB_URL + '/rest/v1/' + path, { headers: _sbHeaders(schema, false) })
+      .then(function (r) {
+        if (!r.ok) return r.text().then(function (t) { throw new Error(schema + '.' + path + ': ' + r.status + ' ' + t.slice(0, 200)); });
+        return r.json();
+      });
+  }
+  function sbRpc(schema, fn, body) {
+    return fetch(SB_URL + '/rest/v1/rpc/' + fn, {
+      method: 'POST', headers: _sbHeaders(schema, true),
+      body: JSON.stringify(body || {})
+    }).then(function (r) {
+      if (!r.ok) return r.text().then(function (t) { throw new Error(schema + '.' + fn + ': ' + r.status + ' ' + t.slice(0, 200)); });
+      return r.json();
     });
-    state.myTeams = teams || [];
-    if (!state.myTeams.length) {
-      el.innerHTML = '<div class="hint" style="margin-top:8px;">No teams found for ' +
-        esc(state.identity.name) + ' in this session.</div>';
-      return;
+  }
+
+  function _stripFormatFromName(s) {
+    if (typeof stripFormatSuffix === 'function') return stripFormatSuffix(s);
+    return String(s || '').replace(/\s+(8|9)\s*Ball\b.*$/i, '').trim();
+  }
+
+  function _ordinal(n) {
+    var s = ['th','st','nd','rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  function _buildAdvancementLines(numTeams, qualify, playoffs) {
+    var triLines = [];
+    var poLines  = [];
+    for (var i = 1; i <= qualify; i++) {
+      triLines.push(_ordinal(i) + ' place qualifies directly');
     }
-    el.innerHTML = state.myTeams.map(t => {
-      const initials = (t.team_name || '').split(/\s+/).slice(0,2)
-        .map(w => w[0] || '').join('').toUpperCase().slice(0,2);
-      const fmt = t.format || '';
-      const night = t.night_of_play ? (' &middot; ' + esc(t.night_of_play)) : '';
-      return `<button type="button" class="team-card" data-div-id="${t.division_id}">
-        <div class="tc-icon">${esc(initials)}</div>
-        <div class="tc-text">
-          <div class="tc-name">${esc(t.team_name)}</div>
-          <div class="tc-meta">${esc(t.division_number)} &middot; ${esc(t.division_name)} &middot; ${esc(fmt)}${night}</div>
-        </div>
-        <div class="tc-arrow">›</div>
-      </button>`;
-    }).join('');
-    el.querySelectorAll('.team-card').forEach(c => {
-      c.onclick = () => {
-        const divId = parseInt(c.dataset.divId, 10);
-        const sel = document.getElementById('divisionSelect');
-        sel.value = divId;
-        onDivisionChange();
+    if (playoffs > 0) {
+      var seeds = [];
+      for (var k = qualify + 1; k <= qualify + playoffs; k++) seeds.push(k);
+      if (playoffs === 1) {
+        poLines.push(_ordinal(seeds[0]) + ' place advances directly (wildcard)');
+      } else if (playoffs === 2) {
+        poLines.push(_ordinal(seeds[0]) + ' vs ' + _ordinal(seeds[1]) + ' — winner advances to Tri-Annuals');
+      } else if (playoffs === 3) {
+        poLines.push(_ordinal(seeds[1]) + ' vs ' + _ordinal(seeds[2]) + ' (' + _ordinal(seeds[0]) + ' bye)');
+        poLines.push('Winner vs ' + _ordinal(seeds[0]) + ' — winner advances to Tri-Annuals');
+      } else {
+        poLines.push('Seeds ' + seeds.join(', ') + ' compete; winner advances to Tri-Annuals.');
+      }
+    }
+    return { triAnnualLines: triLines, playoffLines: poLines };
+  }
+
+  // ── callServer — same surface, Supabase-backed implementation ─────────
+  // The original UI calls callServer(action, params) and expects specific
+  // response shapes. This re-implementation returns the SAME shapes from
+  // Slate so the rest of the page stays untouched.
+  //   'getMaintenanceMode'   — stub off (no maintenance mode in Slate yet)
+  //   'getInitialData'       — { sessionTitle, sessions, divisionRows, summary }
+  //                            optional { sessionId } picks a specific session
+  //   'lookupDivisionInfo'   — { success, divisionName, divisionNumbersDisplay,
+  //                              divisionFormatText, numTeams, triThrough,
+  //                              playoffs, triAnnualLines, playoffLines, warnings }
+  //   'lookupPlayer'         — { success, found, player, teams[] }
+
+  async function callServer(action, params) {
+    params = params || {};
+
+    if (action === 'getMaintenanceMode') {
+      return { success: true, enabled: false };
+    }
+
+    if (action === 'getInitialData') {
+      // Sessions list (descending date; current first)
+      var sessions = await sbGet('slate',
+        'sessions?select=id,name,is_current,start_date&order=start_date.desc.nullslast');
+
+      var pickId = params.sessionId
+        ? parseInt(params.sessionId, 10)
+        : (sessions.find(function (s) { return s.is_current; }) || sessions[0] || {}).id;
+      _currentSessionId = pickId;
+      var picked = sessions.find(function (s) { return s.id === pickId; }) || sessions[0] || {};
+
+      // Divisions for the picked session (SPM only)
+      var divs = await sbGet('slate',
+        'divisions?select=id,division_number,name,format,night_of_play,num_teams,operator_id' +
+        '&session_id=eq.' + pickId +
+        '&operator_id=eq.' + SPM_OPERATOR_ID +
+        '&order=division_number.asc');
+      _divisionsBySession[pickId] = divs;
+
+      // Map into the legacy divisionRows shape
+      var divisionRows = divs.map(function (d) {
+        return {
+          divisionNumber: d.division_number,
+          divisionName:   d.name,
+          nightOfPlay:    d.night_of_play || '',
+          area:           ''   // slate.divisions has no `area` column today
+        };
+      });
+
+      // Summary banner — count 8-Ball-side and 9-Ball-side advancements.
+      // For each division, look up the rule and add qualify+playoffs.
+      // (Same totals the legacy app reported.)
+      var eight = 0, nine = 0;
+      for (var i = 0; i < divs.length; i++) {
+        var d = divs[i];
+        var n = d.num_teams || 0;
+        if (n === 0) continue;
+        var rows = await sbRpc('slate', 'triannual_lookup', { p_num_teams: n });
+        var r = rows[0];
+        if (!r) continue;
+        var total = (r.qualify || 0) + (r.playoffs || 0);
+        var fmt = (d.format || '').toLowerCase();
+        if (fmt.indexOf('8-ball') !== -1)  eight += total;
+        if (fmt.indexOf('9-ball') !== -1)  nine  += total;
+      }
+
+      return {
+        sessionTitle: picked.name || '',
+        sessions: sessions.map(function (s) {
+          return { id: s.id, name: s.name, is_current: !!s.is_current };
+        }),
+        currentSessionId: pickId,
+        divisionRows: divisionRows,
+        summary: {
+          eightBallTeamsAdvancing: eight,
+          nineBallTeamsAdvancing:  nine
+        }
       };
-    });
-  } catch (e) {
-    el.innerHTML = '<div class="status error">' + esc(e.message) + '</div>';
+    }
+
+    if (action === 'lookupDivisionInfo') {
+      var key = (params.divisionNameKey || '').trim();
+      if (!key) return { success: false, message: 'No division was selected.' };
+      var divisions = _divisionsBySession[_currentSessionId] || [];
+      // Match by base name (strip "8/9 Ball" suffix) so DJ pairs collapse.
+      var baseKey = _stripFormatFromName(key).toLowerCase();
+      var matched = divisions.filter(function (d) {
+        return _stripFormatFromName(d.name).toLowerCase() === baseKey;
+      });
+      if (!matched.length) {
+        return { success: false, message: 'Division not found: ' + key };
+      }
+
+      // Order matched divisions by number (8-ball first by convention)
+      matched.sort(function (a, b) {
+        return (parseInt(a.division_number, 10) || 0) - (parseInt(b.division_number, 10) || 0);
+      });
+
+      var numTeams = matched[0].num_teams || 0;
+      var warnings = [];
+      if (matched.length > 1) {
+        var sizes = matched.map(function (d) { return d.num_teams || 0; });
+        var uniq = sizes.filter(function (v, i, a) { return a.indexOf(v) === i; });
+        if (uniq.length > 1) warnings.push('Paired divisions have different team counts: ' + sizes.join(' / ') + '. Using ' + numTeams + '.');
+      }
+      if (numTeams === 0) warnings.push('Division has no team count set in Slate yet — advancement cannot be computed.');
+
+      var rule = null;
+      if (numTeams > 0) {
+        var rows = await sbRpc('slate', 'triannual_lookup', { p_num_teams: numTeams });
+        rule = rows[0] || null;
+      }
+
+      var triThrough = rule ? rule.qualify  : 0;
+      var playoffs   = rule ? rule.playoffs : 0;
+      if (numTeams > 0 && !rule) warnings.push('No advancement rule found for ' + numTeams + ' teams.');
+
+      var lines = _buildAdvancementLines(numTeams, triThrough, playoffs);
+
+      // Display string for division numbers (e.g. "010 / 012" for DJ pairs)
+      var divNumDisplay = matched.map(function (d) { return d.division_number; }).join(' / ');
+      var fmtText;
+      if (matched.length > 1) fmtText = 'Double Jeopardy';
+      else fmtText = matched[0].format || '';
+
+      return {
+        success: true,
+        divisionNumbersDisplay: divNumDisplay,
+        divisionName:           matched[0].name,
+        divisionFormatText:     fmtText,
+        numTeams:               numTeams,
+        triThrough:             triThrough,
+        playoffs:               playoffs,
+        triAnnualLines:         lines.triAnnualLines,
+        playoffLines:           lines.playoffLines,
+        warnings:               warnings
+      };
+    }
+
+    if (action === 'lookupPlayer') {
+      var input = (params.input || '').trim();
+      if (!input) return { success: false, error: 'No input given.' };
+      try {
+        var playerRows = await sbRpc('slate', 'papertrail_lookup_player', { input: input });
+        var p = (playerRows && playerRows[0]) || null;
+        if (!p) return { success: true, found: false };
+
+        var sessId = _currentSessionId || null;
+        var teams = [];
+        if (sessId) {
+          var teamRows = await sbRpc('slate', 'player_teams_for_session',
+            { p_apa_number: p.apa_number, p_session_id: sessId });
+          teams = (teamRows || []).map(function (t) {
+            return {
+              teamNumber:     t.team_number,
+              teamName:       t.team_name,
+              role:           t.role,
+              divisionNumber: t.division_number,
+              divisionName:   t.division_name,
+              nightOfPlay:    t.night_of_play || ''
+            };
+          });
+        }
+
+        var nameParts = (p.name || '').split(/\s+/);
+        return {
+          success: true,
+          found:   true,
+          player: {
+            memberNumber: p.apa_number,
+            firstName:    nameParts[0] || '',
+            lastName:     nameParts.slice(1).join(' ') || ''
+          },
+          teams: teams
+        };
+      } catch (e) {
+        return { success: false, error: e.message || String(e) };
+      }
+    }
+
+    throw new Error('Unknown action: ' + action);
   }
-}
 
-/* ── Sessions + Divisions ──────────────────────────────────────────── */
-async function loadSessions() {
-  const sessions = await sbGet('slate',
-    'sessions?select=id,name,is_current,start_date&order=start_date.desc.nullslast');
-  state.sessions = sessions;
-  const sel = document.getElementById('sessionSelect');
-  sel.innerHTML = sessions.map(s =>
-    `<option value="${s.id}"${s.is_current ? ' selected' : ''}>${esc(s.name)}${s.is_current ? ' (current)' : ''}</option>`
-  ).join('');
-  state.sessionId = parseInt(sel.value, 10) || (sessions[0] && sessions[0].id) || null;
-  sel.onchange = async () => {
-    state.sessionId = parseInt(sel.value, 10);
-    document.getElementById('resultRoot').innerHTML = '';
-    await loadDivisions();
-    await loadMyTeamsForSession();
-  };
-}
 
-async function loadDivisions() {
-  const sel = document.getElementById('divisionSelect');
-  sel.innerHTML = '<option>Loading…</option>';
-  setStatus('loadStatus', '');
-  try {
-    const divs = await sbGet('slate',
-      'divisions?select=id,division_number,name,format,night_of_play,num_teams,operator_id' +
-      '&session_id=eq.' + state.sessionId +
-      '&order=division_number.asc');
-    // Default to SPM only on the dropdown (operator_id=1). If CRA divisions
-    // ever need to show up here, that's a follow-up: add an operator filter UI.
-    const spm = divs.filter(d => d.operator_id === 1);
-    state.divisions = spm;
-    if (!spm.length) {
-      sel.innerHTML = '<option value="">No divisions in this session</option>';
+  // ── escapeHtml — Prevent XSS in rendered content ──────────────────────
+
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(s)));
+    return d.innerHTML;
+  }
+
+
+  // ── splitLineToColumns — Split "1st place advances" into ordinal + rest ─
+  // Extracts the leading ordinal (1st, 2nd, 3rd, etc.) and wraps it in a
+  // fixed-width right-aligned span. The rest of the text goes in a second span.
+  // This makes ordinals vertically align across multiple lines.
+  function splitLineToColumns(text) {
+    var match = text.match(/^(\d+(?:st|nd|rd|th))\b\s*(.*)/i);
+    if (match) {
+      return '<span class="line-ordinal">' + escapeHtml(match[1]) + '</span>' +
+             '<span class="line-rest">' + escapeHtml(match[2]) + '</span>';
+    }
+    // No ordinal found — return as-is
+    return escapeHtml(text);
+  }
+
+
+  // ── rightPad — Pad string with non-breaking spaces ────────────────────
+  // Uses NBSP (\u00A0) so browsers don't collapse whitespace in <option>.
+
+  function rightPad(str, targetLen) {
+    str = String(str);
+    while (str.length < targetLen) {
+      str = str + '\u00A0';
+    }
+    return str;
+  }
+
+
+  // ── boldOrdinalsAndWildcard — Post-process lines for emphasis ─────────
+  // Wraps ordinal numbers ("1st", "2nd", etc.) and "wildcard" in <strong>
+  // tags after rendering escaped text.
+
+  function boldOrdinalsAndWildcard(container) {
+    if (!container) return;
+    // Bold ordinals and "wildcard" in .line-rest spans (the right column)
+    var spans = container.querySelectorAll('.line-rest');
+    var ordinalRe = /\b(\d+(?:st|nd|rd|th))\b/g;
+    var wildcardRe = /\bwildcard\b/gi;
+    spans.forEach(function(span) {
+      var html = span.innerHTML;
+      html = html.replace(ordinalRe, '<strong>$1</strong>');
+      html = html.replace(wildcardRe, '<strong>$&</strong>');
+      span.innerHTML = html;
+    });
+  }
+
+
+  // ── clearResults — Reset result cards to hidden state ─────────────────
+
+  function clearResults() {
+    document.getElementById('results').style.display = 'none';
+    ['divisionBox', 'triBox', 'playoffBox', 'warningBox', 'errorBox'].forEach(function(id) {
+      var el = document.getElementById(id);
+      el.innerHTML = '';
+      if (id === 'warningBox' || id === 'errorBox') {
+        el.style.display = 'none';
+      } else {
+        el.style.display = '';
+      }
+    });
+    document.getElementById('footerNote').style.display = 'none';
+  }
+
+
+  // ── extractPositionNumber — Pull ordinal from a line like "1st place → ..."
+  function extractPositionNumber(line) {
+    var m = line.match(/^(\d+)(?:st|nd|rd|th)/i);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+
+  // ── renderResults — Display advancement info from API response ────────
+
+  function renderResults(data) {
+    clearResults();
+
+    var results    = document.getElementById('results');
+    var divBox     = document.getElementById('divisionBox');
+    var triBox     = document.getElementById('triBox');
+    var playoffBox = document.getElementById('playoffBox');
+    var warnBox    = document.getElementById('warningBox');
+    var errBox     = document.getElementById('errorBox');
+
+    // ── Error response ──
+    if (!data || !data.success) {
+      var msg = data && data.message ? data.message : 'Unknown error.';
+      errBox.innerHTML = '<h2>Error</h2><div class="detail"><div>' + escapeHtml(msg) + '</div></div>';
+      errBox.style.display = '';
+      divBox.style.display = 'none';
+      triBox.style.display = 'none';
+      playoffBox.style.display = 'none';
+      document.getElementById('advancementGrid').style.display = 'none';
+      warnBox.style.display = 'none';
+      results.style.display = 'block';
       return;
     }
-    sel.innerHTML = '<option value="">— select a division —</option>' +
-      spm.map(d => {
-        const meta = [d.format, d.night_of_play].filter(Boolean).join(' · ');
-        return `<option value="${d.id}">${esc(d.division_number)} &mdash; ${esc(d.name)}${meta ? ' (' + esc(meta) + ')' : ''}</option>`;
-      }).join('');
-    sel.onchange = onDivisionChange;
-  } catch (e) {
-    sel.innerHTML = '<option value="">Failed to load</option>';
-    setStatus('loadStatus', e.message, 'error');
-  }
-}
 
-/* ── Advancement display ───────────────────────────────────────────── */
-function pairFor(division) {
-  // Double-Jeopardy detection: an 8-Ball Open + 9-Ball Open with the
-  // same `name` in the same session. We display the matched division
-  // numbers together (e.g., "010 / 012") if both exist.
-  if (!/Open$/.test(division.format || '')) return [division];
-  return state.divisions.filter(d => d.name === division.name && /Open$/.test(d.format || ''));
-}
+    // ── Success — show all result boxes ──
+    divBox.style.display = '';
+    triBox.style.display = '';
+    playoffBox.style.display = '';
+    document.getElementById('advancementGrid').style.display = '';
+    errBox.style.display = 'none';
+    warnBox.style.display = 'none';
+    results.style.display = 'block';
 
-async function onDivisionChange() {
-  const sel = document.getElementById('divisionSelect');
-  const divId = parseInt(sel.value, 10);
-  state.selectedDivisionId = divId;
-  const root = document.getElementById('resultRoot');
-  if (!divId) { root.innerHTML = ''; return; }
-  const division = state.divisions.find(d => d.id === divId);
-  if (!division) { root.innerHTML = ''; return; }
+    // Division details — base name only (DJ pairs share the same teams)
+    var baseName = stripFormatSuffix(data.divisionName || '');
+    var numTeams = escapeHtml(data.numTeams);
 
-  root.innerHTML = '<div class="card"><div class="status progress"><span class="spinner"></span>Calculating advancement…</div></div>';
-  try {
-    const numTeams = division.num_teams || 0;
-    const lookupRows = numTeams > 0
-      ? await sbRpc('slate', 'triannual_lookup', { p_num_teams: numTeams })
-      : [];
-    const rule = lookupRows[0] || null;
+    // Build info display: team name (if from pill click), division name, team count
+    // These are HEADERS (non-interactive), not buttons — styled as plain text
+    var infoHtml = '<div class="result-info-stack">';
 
-    const warnings = [];
-    if (numTeams === 0) warnings.push('Division has no team count set in Slate yet — advancement cannot be computed until num_teams is populated.');
-    if (numTeams > 0 && !rule) warnings.push('No advancement rule found for ' + numTeams + ' teams. The smallest rule is 4-team; smaller divisions may not have a defined bracket.');
-
-    root.innerHTML = renderResult(division, numTeams, rule, warnings);
-  } catch (e) {
-    root.innerHTML = '<div class="card"><div class="status error">' + esc(e.message) + '</div></div>';
-  }
-}
-
-function renderResult(division, numTeams, rule, warnings) {
-  const pair = pairFor(division);
-  const divNumDisplay = pair.length > 1
-    ? pair.map(p => p.division_number).join(' / ')
-    : division.division_number;
-  const fmtText = pair.length > 1 ? 'Double Jeopardy (8-Ball + 9-Ball)' : (division.format || '');
-
-  const qualify  = rule ? rule.qualify  : 0;
-  const playoffs = rule ? rule.playoffs : 0;
-  const total    = rule ? rule.total    : 0;
-
-  const qualifyLines = qualifyBracket(numTeams, qualify);
-  const playoffLines = playoffBracket(numTeams, qualify, playoffs);
-
-  return `
-    <div class="result-card">
-      <div class="result-header">
-        <div class="result-divnums">Division ${esc(divNumDisplay)}</div>
-        <div class="result-divname">${esc(division.name)}</div>
-        <div class="result-fmt">${esc(fmtText)}${division.night_of_play ? ' &middot; ' + esc(division.night_of_play) : ''}</div>
-      </div>
-
-      <div class="summary-grid">
-        <div class="summary-cell">
-          <div class="num">${numTeams || '—'}</div>
-          <div class="lbl">Teams</div>
-        </div>
-        <div class="summary-cell">
-          <div class="num">${qualify}</div>
-          <div class="lbl">Direct to Tri-Annuals</div>
-        </div>
-        <div class="summary-cell">
-          <div class="num">${playoffs}</div>
-          <div class="lbl">Playoff Bracket</div>
-        </div>
-      </div>
-
-      ${qualifyLines.length ? `
-        <div class="section">
-          <h3>Qualify direct to Tri-Annuals</h3>
-          <div class="lines">
-            ${qualifyLines.map(l => `<div class="line qualify">${esc(l)}</div>`).join('')}
-          </div>
-        </div>` : ''}
-
-      ${playoffLines.length ? `
-        <div class="section">
-          <h3>Playoff bracket</h3>
-          <div class="lines">
-            ${playoffLines.map(l => `<div class="line">${esc(l)}</div>`).join('')}
-          </div>
-        </div>` : ''}
-
-      ${warnings.length ? `
-        <div class="warnings">
-          <div class="wlbl">Notes</div>
-          ${warnings.map(w => `<div class="w">${esc(w)}</div>`).join('')}
-        </div>` : ''}
-
-      <div class="section" style="border-top:none;padding-top:0;margin-top:14px;text-align:right">
-        <span class="hint">${rule
-          ? 'Total advancing: ' + total + ' team' + (total === 1 ? '' : 's') + ' (' + qualify + ' qualify + ' + playoffs + ' playoffs)'
-          : ''}</span>
-      </div>
-    </div>`;
-}
-
-/* ── Bracket-line builders (presentation only) ────────────────────── */
-function ordinal(n) {
-  const s = ['th','st','nd','rd'], v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-function qualifyBracket(numTeams, qualify) {
-  if (!qualify) return [];
-  const out = [];
-  for (let i = 1; i <= qualify; i++) {
-    out.push(ordinal(i) + ' place qualifies directly');
-  }
-  return out;
-}
-function playoffBracket(numTeams, qualify, playoffs) {
-  if (!playoffs) return [];
-  const out = [];
-  // Seeds entering the playoff are the (qualify+1) through (qualify+playoffs) places.
-  const playoffSeeds = [];
-  for (let i = qualify + 1; i <= qualify + playoffs; i++) playoffSeeds.push(i);
-
-  if (playoffs === 1) {
-    out.push(ordinal(playoffSeeds[0]) + ' place advances directly (wildcard)');
-    return out;
-  }
-  if (playoffs === 2) {
-    out.push(ordinal(playoffSeeds[0]) + ' vs ' + ordinal(playoffSeeds[1]) +
-      ' — winner advances to Tri-Annuals');
-    return out;
-  }
-  if (playoffs === 3) {
-    // Bye for the higher seed, then final
-    out.push(ordinal(playoffSeeds[1]) + ' vs ' + ordinal(playoffSeeds[2]) +
-      ' (' + ordinal(playoffSeeds[0]) + ' bye)');
-    out.push('Winner vs ' + ordinal(playoffSeeds[0]) + ' — winner advances to Tri-Annuals');
-    return out;
-  }
-  // Fallback for 4+ (not in current data but defensive)
-  out.push('Seeds ' + playoffSeeds.join(', ') + ' compete; winner advances to Tri-Annuals.');
-  return out;
-}
-
-/* ── Misc ─────────────────────────────────────────────────────────── */
-function esc(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g,
-    c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-}
-function setStatus(id, msg, kind) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (!msg) { el.innerHTML = ''; return; }
-  el.innerHTML = '<div class="status ' + (kind || 'progress') + '">' + esc(msg) + '</div>';
-}
-
-/* ── Auto-update version-poll (standard pattern) ──────────────────── */
-async function checkVersion() {
-  try {
-    const r = await fetch(SB_URL + '/rest/v1/apps?app_name=eq.' + APP_NAME + '&select=version', {
-      headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Accept-Profile': 'apa_core' }
-    });
-    if (!r.ok) return;
-    const rows = await r.json();
-    if (rows[0] && rows[0].version !== window.APP_VERSION) {
-      document.getElementById('updateOverlay').classList.add('open');
-      setTimeout(() => location.reload(true), 800);
+    // Team name (only if clicked from player pill)
+    if (_clickedTeamName) {
+      infoHtml += '<div class="result-team-name">' + escapeHtml(_clickedTeamName) + '</div>';
     }
-  } catch (_) {}
-}
 
-/* ── Bootstrap ────────────────────────────────────────────────────── */
-async function init() {
-  loadIdentity();
-  renderHeaderWho();
-  document.getElementById('idGo').onclick = tryLookup;
-  document.getElementById('idInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') tryLookup();
+    // Division name
+    infoHtml += '<div class="result-division-name">' + escapeHtml(baseName) + ' Division</div>';
+
+    // Team count
+    infoHtml += '<div class="result-team-count">' + numTeams + ' Teams</div>';
+
+    infoHtml += '</div>';
+    divBox.innerHTML = infoHtml;
+
+    // Clear the clicked team name after use
+    _clickedTeamName = null;
+
+    // Tri-annual qualifiers — green left border, aligned columns
+    // First line gets a trophy sub-line — only 1st place earns the trophy
+    var triLines = (data.triAnnualLines || []).map(function(l, idx) {
+      var cols = splitLineToColumns(l);
+      var html = '<div class="tri-line">' + cols + '</div>';
+      if (idx === 0) {
+        // Trophy sub-line: same green styling, uses ordinal column for indent alignment
+        html += '<div class="tri-line trophy-sub"><span class="line-ordinal"></span><span class="line-rest trophy-note">\uD83C\uDFC6 <em>and the trophy</em></span></div>';
+      }
+      return html;
+    }).join('');
+
+    triBox.innerHTML =
+      '<h2>Tri-Annual Qualifiers</h2>' +
+      '<div class="detail">' + triLines + '</div>';
+
+    // Playoff matchups — amber left border, aligned columns
+    var playoffLines = (data.playoffLines || []).map(function(l) {
+      return '<div class="playoff-line">' + splitLineToColumns(l) + '</div>';
+    }).join('');
+
+    playoffBox.innerHTML =
+      '<h2>\u2694\uFE0F Division Playoffs</h2>' +
+      '<div class="detail">' + playoffLines + '</div>';
+
+    // Post-process to bold ordinals and "wildcard"
+    boldOrdinalsAndWildcard(triBox);
+    boldOrdinalsAndWildcard(playoffBox);
+
+    // Warnings (e.g. DJ pair config mismatch)
+    if (data.warnings && data.warnings.length) {
+      warnBox.innerHTML =
+        '<h2>Warnings</h2><div class="detail">' +
+        data.warnings.map(function(w) {
+          return '<div>' + escapeHtml(w) + '</div>';
+        }).join('') +
+        '</div>';
+      warnBox.style.display = '';
+    }
+
+    document.getElementById('footerNote').style.display = 'block';
+  }
+
+
+  // ── populateDropdown — Build division selector from initial data ───────
+  // Groups rows by division name (DJ pairs share the same name).
+
+  // Strip "8 Ball", "9 Ball", "8-Ball", "9-Ball" suffix to get base division name.
+  // "West Hills 8 Ball" → "West Hills", "Southeast 9-Ball" → "Southeast"
+  function stripFormatSuffix(name) {
+    return name.replace(/\s*(8|9)[\s-]?Ball$/i, '').trim();
+  }
+
+  // Store parsed options globally for custom dropdown and player pills
+  var _dropdownOptions = [];
+
+  function populateDropdown(divisionRows) {
+    var selectEl = document.getElementById('divisionSelect');
+
+    // Group by BASE division name (strip 8/9 Ball suffix).
+    // "West Hills 8 Ball" and "West Hills 9 Ball" collapse to "West Hills".
+    var baseToInfo = {};
+
+    divisionRows.forEach(function(row) {
+      var name  = (row.divisionName || '').trim();
+      var num   = (row.divisionNumber || '').trim();
+      var night = (row.nightOfPlay || '').trim();
+      var area  = (row.area || '').trim();
+      if (!name || !num) return;
+
+      var baseName = stripFormatSuffix(name);
+
+      if (!baseToInfo[baseName]) {
+        baseToInfo[baseName] = { nums: [], night: night, area: area, fullNames: [] };
+      }
+      baseToInfo[baseName].nums.push(num);
+      if (baseToInfo[baseName].fullNames.indexOf(name) === -1) {
+        baseToInfo[baseName].fullNames.push(name);
+      }
+
+      if (!baseToInfo[baseName].night && night) baseToInfo[baseName].night = night;
+      if (!baseToInfo[baseName].area && area) baseToInfo[baseName].area = area;
+    });
+
+    // Build option objects with sort keys
+    var options = [];
+    Object.keys(baseToInfo).forEach(function(baseName) {
+      var info = baseToInfo[baseName];
+      var numsArr = info.nums.slice();
+      numsArr.sort(function(a, b) {
+        return (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0);
+      });
+
+      var nightText = info.night ? '(' + info.night + ')' : '';
+
+      options.push({
+        // Use the first full name as the key for lookupDivisionInfo —
+        // the backend matches on exact division name and handles DJ pairs
+        key: info.fullNames[0],
+        nightText: nightText,
+        baseName: baseName,
+        area: info.area || '',
+        sortKey: parseInt(numsArr[0], 10) || 0
+      });
+    });
+
+    // Sort by night of play (day order), then by division number
+    var dayOrder = { 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 7, '': 8 };
+    options.sort(function(a, b) {
+      var aNight = a.nightText.replace(/[()]/g, '');
+      var bNight = b.nightText.replace(/[()]/g, '');
+      var dayDiff = (dayOrder[aNight] || 8) - (dayOrder[bNight] || 8);
+      if (dayDiff !== 0) return dayDiff;
+      return a.sortKey - b.sortKey;
+    });
+
+    // Store globally
+    _dropdownOptions = options;
+
+    // Build native select options (hidden, for programmatic use)
+    options.forEach(function(o) {
+      var label = o.baseName;
+      if (o.nightText) label += ' — ' + o.nightText.replace(/[()]/g, '');
+
+      var opt = document.createElement('option');
+      opt.value = o.key;
+      opt.textContent = label;
+      selectEl.appendChild(opt);
+    });
+
+    // Build custom dropdown panel
+    buildCustomDropdownPanel(options);
+  }
+
+
+  // ── Custom dropdown panel builder ────────────────────────────────────
+  function buildCustomDropdownPanel(options) {
+    var panel = document.getElementById('customDropdownPanel');
+    panel.innerHTML = '';
+
+    var lastNight = null;
+    for (var i = 0; i < options.length; i++) {
+      var o = options[i];
+      var night = o.nightText.replace(/[()]/g, '') || '';
+
+      // Add day-of-week section header when the night group changes
+      if (night !== lastNight && night) {
+        var header = document.createElement('div');
+        header.className = 'custom-dropdown-day-header';
+        header.textContent = night;
+        panel.appendChild(header);
+      }
+      lastNight = night;
+
+      var item = document.createElement('div');
+      item.className = 'custom-dropdown-item';
+      item.setAttribute('data-value', o.key);
+      item.setAttribute('data-night', night);
+      item.setAttribute('data-basename', o.baseName);
+      item.innerHTML =
+        '<div class="item-name">' + escapeHtml(o.baseName) + '</div>';
+
+      item.addEventListener('click', (function(key, baseName, nightLabel) {
+        return function() {
+          selectCustomDropdownItem(key, baseName, nightLabel);
+        };
+      })(o.key, o.baseName, night));
+
+      panel.appendChild(item);
+    }
+  }
+
+  // ── Select a custom dropdown item ─────────────────────────────────────
+  function selectCustomDropdownItem(key, baseName, night) {
+    var trigger = document.getElementById('customDropdownTrigger');
+    trigger.innerHTML =
+      (night ? '<span class="trigger-night">' + escapeHtml(night) + '</span>' : '') +
+      '<span class="trigger-name">' + escapeHtml(baseName) + '</span>';
+
+    // Mark selected
+    var panel = document.getElementById('customDropdownPanel');
+    var items = panel.querySelectorAll('.custom-dropdown-item');
+    items.forEach(function(it) {
+      it.classList.toggle('selected', it.getAttribute('data-value') === key);
+    });
+
+    // Close dropdown
+    document.getElementById('customDropdown').classList.remove('open');
+
+    // Sync native select and fire change
+    var selectEl = document.getElementById('divisionSelect');
+    for (var i = 0; i < selectEl.options.length; i++) {
+      if (selectEl.options[i].value === key) {
+        selectEl.selectedIndex = i;
+        selectEl.dispatchEvent(new Event('change'));
+        break;
+      }
+    }
+  }
+
+  // ── Custom dropdown open/close logic ──────────────────────────────────
+  document.addEventListener('click', function(e) {
+    var dropdown = document.getElementById('customDropdown');
+    var trigger = document.getElementById('customDropdownTrigger');
+
+    if (trigger && trigger.contains(e.target)) {
+      dropdown.classList.toggle('open');
+      e.stopPropagation();
+    } else if (dropdown && !dropdown.contains(e.target)) {
+      dropdown.classList.remove('open');
+    }
   });
 
-  try {
-    await loadSessions();
-    await loadDivisions();
-    if (state.identity) await loadMyTeamsForSession();
-  } catch (e) {
-    setStatus('loadStatus', e.message, 'error');
+  // ── Sync custom dropdown when native select changes programmatically ──
+  function syncCustomDropdownToNative() {
+    var selectEl = document.getElementById('divisionSelect');
+    var val = selectEl.value;
+    if (!val) return;
+
+    // Find matching option data
+    for (var i = 0; i < _dropdownOptions.length; i++) {
+      var o = _dropdownOptions[i];
+      if (o.key === val) {
+        var night = o.nightText.replace(/[()]/g, '') || '';
+        var trigger = document.getElementById('customDropdownTrigger');
+        trigger.innerHTML =
+          (night ? '<span class="trigger-night">' + escapeHtml(night) + '</span>' : '') +
+          '<span class="trigger-name">' + escapeHtml(o.baseName) + '</span>';
+
+        // Mark selected in panel
+        var items = document.getElementById('customDropdownPanel').querySelectorAll('.custom-dropdown-item');
+        items.forEach(function(it) {
+          it.classList.toggle('selected', it.getAttribute('data-value') === val);
+        });
+        break;
+      }
+    }
   }
-  setInterval(checkVersion, 30000);
-}
-init();
+
+
+  // ── selectDivisionByName — Programmatically select a dropdown option ──
+  // Finds the option whose value matches the given division name, selects
+  // it, and dispatches a 'change' event to trigger the lookup.
+
+  function selectDivisionByName(divisionName) {
+    var selectEl = document.getElementById('divisionSelect');
+    var options = selectEl.options;
+    for (var i = 0; i < options.length; i++) {
+      if (options[i].value === divisionName) {
+        selectEl.selectedIndex = i;
+        // Sync custom dropdown display
+        syncCustomDropdownToNative();
+        selectEl.dispatchEvent(new Event('change'));
+        // Scroll the dropdown into view so results are visible
+        document.getElementById('customDropdown').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+    }
+  }
+
+
+  // ── renderPlayerResults — Display player lookup cards ──────────────────
+  // Shows the player's name and a card for each team they're on.
+  // Division names that match a dropdown option become clickable links.
+  //
+  // API response shape (from Code.js lookupPlayer):
+  //   {
+  //     success: true,
+  //     found: true,
+  //     player: { memberNumber, firstName, lastName },
+  //     teams: [
+  //       { teamNumber, teamName, role, divisionNumber, divisionName, nightOfPlay }
+  //     ]
+  //   }
+
+  function renderPlayerResults(data) {
+    var container = document.getElementById('playerResults');
+    var statusEl  = document.getElementById('lookupStatus');
+
+    // ── Not found ──
+    if (!data.found) {
+      container.style.display = 'none';
+      statusEl.textContent = 'No player found. Check your APA # or email.';
+      return;
+    }
+
+    // ── Player name ──
+    var player = data.player || {};
+    var fullName = (player.firstName || '') + ' ' + (player.lastName || '');
+    fullName = fullName.trim() || 'Player';
+
+    // ── Deduplicate divisions across teams ──
+    // DJ divisions have separate 8-Ball and 9-Ball entries with the same
+    // base name (e.g., "West Hills 8 Ball" / "West Hills 9 Ball").
+    // We want unique division names that match the main dropdown options.
+    // Also collect team names per division for display.
+    var teams = data.teams || [];
+    var divSet = {};       // divisionName → true (dedup)
+    var divTeams = {};     // divisionName → [teamName, ...]
+    var divNight = {};     // divisionName → nightOfPlay
+
+    // Build set of BASE division names in the main dropdown for matching.
+    // The dropdown uses base names (e.g., "West Hills") not full names
+    // (e.g., "West Hills 8 Ball"). The API returns full names, so we must
+    // match on base name to avoid dropping DJ-single entries (player on
+    // 9-Ball only but not 8-Ball → full name "West Hills 9 Ball" won't
+    // match dropdown value "West Hills" without stripping the suffix).
+    var selectEl = document.getElementById('divisionSelect');
+    var dropdownBaseNames = {};  // baseName → dropdown value
+    for (var i = 0; i < selectEl.options.length; i++) {
+      var val = selectEl.options[i].value;
+      if (val) dropdownBaseNames[stripFormatSuffix(val)] = val;
+    }
+
+    // Group by BASE name (strip 8/9 Ball suffix) — collapse DJ pairs
+    var baseToTeams = {};   // baseName → [teamName, ...]
+    var baseToNight = {};   // baseName → nightOfPlay
+    var baseToFullName = {}; // baseName → dropdown value (for auto-select)
+
+    for (var t = 0; t < teams.length; t++) {
+      var team = teams[t];
+      var divName = team.divisionName || '';
+      var baseName = stripFormatSuffix(divName);
+      if (!baseName || !dropdownBaseNames[baseName]) continue;
+
+      if (!baseToTeams[baseName]) {
+        baseToTeams[baseName] = [];
+        baseToNight[baseName] = team.nightOfPlay || '';
+        baseToFullName[baseName] = dropdownBaseNames[baseName];
+      }
+      var teamLabel = team.teamName || ('Team ' + team.teamNumber);
+      if (baseToTeams[baseName].indexOf(teamLabel) === -1) {
+        baseToTeams[baseName].push(teamLabel);
+      }
+    }
+
+    // Sort by night of play (day order), then alphabetical
+    var dayOrder = { 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 7, '': 8 };
+    var divNames = Object.keys(baseToTeams).sort(function(a, b) {
+      var dayDiff = (dayOrder[baseToNight[a]] || 8) - (dayOrder[baseToNight[b]] || 8);
+      if (dayDiff !== 0) return dayDiff;
+      return a.localeCompare(b);
+    });
+
+    if (divNames.length === 0) {
+      container.style.display = 'none';
+      statusEl.textContent = fullName + ' — no 8-Ball or 9-Ball team divisions found.';
+      return;
+    }
+
+    // ── Build pill buttons — show team name only ──
+    var html = '<div class="player-name">' + escapeHtml(fullName) + '</div>';
+    html += '<div class="player-pills">';
+
+    for (var d = 0; d < divNames.length; d++) {
+      var bn = divNames[d];
+      // Show team name(s) instead of division name + night
+      var teamNames = baseToTeams[bn] || [];
+      var pillLabel = teamNames.length > 0 ? teamNames.join(' / ') : bn;
+      html += '<button class="player-pill" data-div="' + escapeHtml(baseToFullName[bn]) + '" data-team="' + escapeHtml(pillLabel) + '">';
+      html += escapeHtml(pillLabel);
+      html += '</button>';
+    }
+
+    html += '</div>';
+
+    container.innerHTML = html;
+    container.style.display = 'block';
+    statusEl.textContent = '';
+
+    // ── Hide main dropdown & lead text (pills replace it) ──
+    var leadEl = document.querySelector('.lead');
+    var selectorEl = document.querySelector('.selector-wrap');
+    if (leadEl) leadEl.style.display = 'none';
+    if (selectorEl) selectorEl.style.display = 'none';
+
+    // ── "Browse all divisions" toggle link ──
+    var browseLink = document.createElement('button');
+    browseLink.className = 'browse-all-btn';
+    browseLink.textContent = 'Browse all divisions';
+    browseLink.addEventListener('click', function() {
+      if (selectorEl && selectorEl.style.display === 'none') {
+        selectorEl.style.display = '';
+        browseLink.textContent = 'Hide all divisions';
+      } else if (selectorEl) {
+        selectorEl.style.display = 'none';
+        browseLink.textContent = 'Browse all divisions';
+      }
+    });
+    container.appendChild(browseLink);
+
+    // ── Attach click handlers to pills ──
+    var pills = container.querySelectorAll('.player-pill');
+    pills.forEach(function(pill) {
+      pill.addEventListener('click', function() {
+        // Remove active from all pills, add to this one
+        pills.forEach(function(p) { p.classList.remove('active'); });
+        pill.classList.add('active');
+        // Store the clicked team name globally for renderResults
+        _clickedTeamName = pill.getAttribute('data-team');
+        selectDivisionByName(pill.getAttribute('data-div'));
+      });
+    });
+
+    // ── Auto-select if only one division ──
+    if (divNames.length === 1) {
+      pills[0].classList.add('active');
+      _clickedTeamName = pills[0].getAttribute('data-team');
+      selectDivisionByName(pills[0].getAttribute('data-div'));
+    }
+  }
+
+
+  // ── Player lookup form submit handler ─────────────────────────────────
+
+  document.getElementById('lookupForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    var input = document.getElementById('lookupInput').value.trim();
+    var statusEl = document.getElementById('lookupStatus');
+    var container = document.getElementById('playerResults');
+    var btn = document.getElementById('lookupBtn');
+
+    if (!input) {
+      statusEl.textContent = 'Enter your APA # or email address.';
+      return;
+    }
+
+    // Disable button during request
+    btn.disabled = true;
+    statusEl.textContent = 'Looking up...';
+    container.style.display = 'none';
+
+    try {
+      var data = await callServer('lookupPlayer', { input: input });
+      btn.disabled = false;
+
+      if (!data || !data.success) {
+        statusEl.textContent = (data && data.error) || 'Lookup failed. Please try again.';
+        return;
+      }
+
+      // Save to sessionStorage for auto-lookup on return
+      try { sessionStorage.setItem('playoffs_lastInput', input); } catch (_) {}
+
+      renderPlayerResults(data);
+    } catch (err) {
+      btn.disabled = false;
+      statusEl.textContent = err.message || 'Lookup failed. Please try again.';
+    }
+  });
+
+
+  // ── Division select change handler ────────────────────────────────────
+
+  document.getElementById('divisionSelect').addEventListener('change', async function() {
+    clearResults();
+    var val = this.value;
+    var statusEl = document.getElementById('status');
+    var skeletonEl = document.getElementById('skeleton');
+
+    if (!val) {
+      statusEl.textContent = 'Please select a division.';
+      return;
+    }
+
+    statusEl.textContent = '';
+    skeletonEl.style.display = 'block';
+
+    try {
+      var data = await callServer('lookupDivisionInfo', { divisionNameKey: val });
+      skeletonEl.style.display = 'none';
+      statusEl.textContent = '';
+      renderResults(data);
+    } catch (err) {
+      skeletonEl.style.display = 'none';
+      statusEl.textContent = '';
+      renderResults({
+        success: false,
+        message: err.message || 'Failed to load division info. Please try again.'
+      });
+    }
+  });
+
+
+  // ── Page initialization ───────────────────────────────────────────────
+
+  document.addEventListener('DOMContentLoaded', async function() {
+
+    // ── Maintenance mode gate ──────────────────────────────────────────
+    // Routed through callServer() (which talks to Supabase in v2.0). Stub
+    // currently returns enabled:false. Fails open if errors.
+    try {
+      var maintResp = await callServer('getMaintenanceMode');
+
+      if (maintResp.success && maintResp.enabled) {
+        var urlParams = new URLSearchParams(window.location.search);
+        var bypassKey = urlParams.get('key') || '';
+        if (bypassKey !== maintResp.bypassKey) {
+          // Show maintenance page and halt
+          document.body.innerHTML = '';
+          document.body.style.cssText = 'margin:0;padding:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100svh;font-family:system-ui,-apple-system,sans-serif;';
+          var box = document.createElement('div');
+          box.style.cssText = 'text-align:center;padding:48px 24px;max-width:500px;';
+          box.innerHTML = '<div style="font-size:48px;font-weight:900;font-style:italic;color:#ea002a;line-height:1.1;margin-bottom:24px;">Playoffs</div>'
+            + '<div style="font-size:20px;font-weight:600;color:#0031a1;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:16px;">Under Maintenance</div>'
+            + '<div style="font-size:15px;color:#888;line-height:1.6;">We\'re making improvements.<br>Check back shortly.</div>';
+          document.body.appendChild(box);
+          document.body.style.visibility = 'visible';
+          return; // Stop all further initialization
+        }
+      }
+    } catch (e) {
+      // Fail open — don't block users if maintenance check fails
+    }
+
+    // ── Maintenance check passed — reveal the page ────────────────────
+    document.body.style.visibility = 'visible';
+
+    // ── applyInitialData — renders session dropdown, divisions, summary ─
+    // Extracted so the session-select change handler can reload everything
+    // for a different session without page reload.
+    function applyInitialData(data) {
+      // Session dropdown — show ALL sessions, always visible (was hidden
+      // until 2+ options in the legacy spreadsheet model; Slate has
+      // multiple sessions natively).
+      var sessionSelect = document.getElementById('sessionSelect');
+      sessionSelect.innerHTML = '';
+      var sessions = (data && Array.isArray(data.sessions)) ? data.sessions : [];
+      sessions.forEach(function (s) {
+        var opt = document.createElement('option');
+        opt.value = String(s.id);
+        opt.textContent = s.name + (s.is_current ? ' (current)' : '');
+        if (s.id === data.currentSessionId) opt.selected = true;
+        sessionSelect.appendChild(opt);
+      });
+      // Always visible now (Slate-native architecture supports multiple sessions)
+      sessionSelect.style.display = '';
+
+      // Division dropdown
+      var divSel = document.getElementById('divisionSelect');
+      // Clear all existing non-placeholder options so re-rendering on session
+      // change starts fresh (populateDropdown only appends).
+      for (var i = divSel.options.length - 1; i > 0; i--) divSel.remove(i);
+      divSel.value = '';
+      if (data && Array.isArray(data.divisionRows)) {
+        populateDropdown(data.divisionRows);
+      }
+
+      // Clear any previous result card when switching sessions
+      if (typeof clearResults === 'function') clearResults();
+
+      // Summary banner
+      if (data && data.summary) {
+        document.getElementById('summary8circle').textContent = data.summary.eightBallTeamsAdvancing;
+        document.getElementById('summary9circle').textContent = data.summary.nineBallTeamsAdvancing;
+        document.getElementById('summaryBanner').style.display = 'block';
+      }
+    }
+
+    // ── Load initial data (sessions + divisions for default session) ──
+    try {
+      var data = await callServer('getInitialData');
+      applyInitialData(data);
+    } catch (e) {
+      document.getElementById('status').textContent = 'Failed to load divisions. Please refresh to try again.';
+    }
+
+    // ── Session-change handler: reload for the picked session ─────────
+    document.getElementById('sessionSelect').addEventListener('change', async function () {
+      var newId = parseInt(this.value, 10);
+      if (!newId) return;
+      try {
+        var d = await callServer('getInitialData', { sessionId: newId });
+        applyInitialData(d);
+      } catch (e) {
+        document.getElementById('status').textContent = 'Failed to load that session.';
+      }
+    });
+
+    // ── Auto-lookup from sessionStorage (remember user) ────────────────
+    // Same pattern as MultiPass: if the user looked up before in this
+    // browser tab, auto-repeat the lookup so they see their teams immediately.
+    try {
+      var lastInput = sessionStorage.getItem('playoffs_lastInput');
+      if (lastInput) {
+        document.getElementById('lookupInput').value = lastInput;
+        document.getElementById('lookupForm').dispatchEvent(new Event('submit'));
+      }
+    } catch (_) {}
+  });
 </script>
 
 </body>
