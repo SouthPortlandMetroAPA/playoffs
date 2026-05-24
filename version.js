@@ -6,4 +6,4 @@
      3. git push
    Bumping #1 first prevents reload-loops on open tabs.
    ════════════════════════════════════════════════════════════════════════ */
-window.APP_VERSION = '2.0';
+window.APP_VERSION = '2.1';
