@@ -145,34 +145,55 @@
       border: 1.5px solid rgba(255,255,255,0.5);
     }
 
-    /* -- Session dropdown in header -------------------------------------- */
-    .session-select {
-      margin-top: 8px;
-      padding: 4px 12px;
-      font-size: 0.875rem;
+    /* -- Session bar (own row beneath header) ---------------------------- */
+    .session-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .session-bar-label {
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--spm-accent);
+      flex-shrink: 0;
+    }
+
+    /* Session select rendered as a card-style chip beneath the banner */
+    .session-select--card {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 12px;
+      font-size: 0.9rem;
       font-family: inherit;
       font-weight: 600;
-      color: #fff;
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.5);
-      border-radius: 999px;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
       cursor: pointer;
-      appearance: none;
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      text-align: center;
       outline: none;
-      opacity: 0.9;
+    }
+
+    .session-select--card:focus {
+      border-color: var(--spm-accent);
+      box-shadow: 0 0 0 3px rgba(0, 49, 161, 0.15);
     }
 
     .session-select option {
       color: var(--text);
       background: var(--card);
-    }
-
-    .session-select:focus {
-      border-color: #fff;
-      opacity: 1;
     }
 
     /* =====================================================================
@@ -1226,10 +1247,15 @@
     <div class="header-org">South Portland Metro APA</div>
     <h1 class="header-title">Playoffs</h1>
     <div class="header-pill">Who Plays Who?</div>
-    <select class="session-select" id="sessionSelect" aria-label="Current session" style="display:none;">
-      <option value="" disabled selected>Loading...</option>
-    </select>
   </header>
+
+  <!-- ── Session bar (own row, between header and summary) ───────────── -->
+  <div class="session-bar" id="sessionBar" style="display:none;">
+    <label for="sessionSelect" class="session-bar-label">Session</label>
+    <select class="session-select session-select--card" id="sessionSelect" aria-label="Choose session">
+      <option value="" disabled selected>Loading…</option>
+    </select>
+  </div>
 
   <!-- ── Summary Banner ────────────────────────────────────────────── -->
   <div class="summary-banner" id="summaryBanner" style="display:none;">
@@ -1457,21 +1483,25 @@
         };
       });
 
-      // Summary banner — count 8-Ball-side and 9-Ball-side advancements.
-      // For each division, look up the rule and add qualify+playoffs.
-      // (Same totals the legacy app reported.)
+      // Summary banner — count 8-Ball-side and 9-Ball-side advancements
+      // for the TRI-ANNUALS only. Tri-Annuals are 8-Ball Open + 9-Ball
+      // Open only — Doubles, Ladies, and Masters all have their own
+      // separate playoffs. Filter to format EXACTLY '8-Ball Open' or
+      // '9-Ball Open' (substring matching incorrectly swept in
+      // '8-Ball Doubles', '8-Ball Ladies', '9-Ball Doubles').
       var eight = 0, nine = 0;
       for (var i = 0; i < divs.length; i++) {
         var d = divs[i];
         var n = d.num_teams || 0;
         if (n === 0) continue;
+        var fmt = (d.format || '').trim();
+        if (fmt !== '8-Ball Open' && fmt !== '9-Ball Open') continue;
         var rows = await sbRpc('slate', 'triannual_lookup', { p_num_teams: n });
         var r = rows[0];
         if (!r) continue;
         var total = (r.qualify || 0) + (r.playoffs || 0);
-        var fmt = (d.format || '').toLowerCase();
-        if (fmt.indexOf('8-ball') !== -1)  eight += total;
-        if (fmt.indexOf('9-ball') !== -1)  nine  += total;
+        if (fmt === '8-Ball Open') eight += total;
+        else                       nine  += total;
       }
 
       return {
@@ -2269,6 +2299,8 @@
         sessionSelect.appendChild(opt);
       });
       // Always visible now (Slate-native architecture supports multiple sessions)
+      var sessionBar = document.getElementById('sessionBar');
+      if (sessionBar) sessionBar.style.display = '';
       sessionSelect.style.display = '';
 
       // Division dropdown
