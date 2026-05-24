@@ -1471,6 +1471,29 @@
         '&session_id=eq.' + pickId +
         '&operator_id=eq.' + SPM_OPERATOR_ID +
         '&order=division_number.asc');
+
+      // Real team counts: query slate.teams and group by division_id.
+      // slate.divisions.num_teams is the registered/PDF-imported count
+      // which INCLUDES the "TBA" placeholder slot (always +1 vs the real
+      // roster). The actual roster lives in slate.teams; that's what
+      // advancement should be computed from.
+      var divIds = divs.map(function (d) { return d.id; });
+      var actualCountByDiv = {};
+      if (divIds.length) {
+        var teamRows = await sbGet('slate',
+          'teams?select=division_id&division_id=in.(' + divIds.join(',') + ')');
+        for (var ti = 0; ti < teamRows.length; ti++) {
+          var k = teamRows[ti].division_id;
+          actualCountByDiv[k] = (actualCountByDiv[k] || 0) + 1;
+        }
+      }
+      // Attach actual count to each division for downstream consumers.
+      // Use it as the canonical num_teams; the original stored value is
+      // kept as `stored_num_teams` for debugging/display if ever needed.
+      divs.forEach(function (d) {
+        d.stored_num_teams = d.num_teams;
+        d.num_teams = actualCountByDiv[d.id] || 0;
+      });
       _divisionsBySession[pickId] = divs;
 
       // Map into the legacy divisionRows shape
