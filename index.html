@@ -1950,11 +1950,15 @@
       var o = options[i];
       var night = o.nightText.replace(/[()]/g, '') || '';
 
-      // Add day-of-week section header when the night group changes
-      if (night !== lastNight && night) {
+      // Add a day-of-week header whenever the night group changes —
+      // including the transition into the "no night set" bucket. The
+      // previous && night gate meant divisions with a null night_of_play
+      // got rendered under whatever day-header came before them in the
+      // sort order, which silently mis-grouped them (e.g. Skyline → Sunday).
+      if (night !== lastNight) {
         var header = document.createElement('div');
         header.className = 'custom-dropdown-day-header';
-        header.textContent = night;
+        header.textContent = night || 'Day not set';
         panel.appendChild(header);
       }
       lastNight = night;
