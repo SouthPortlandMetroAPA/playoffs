@@ -1412,25 +1412,45 @@
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
+  /* Bylaws-canonical playoff line builder. The five bylaws bands each
+     name SPECIFIC seeds + the Wild Card draw — this function emits the
+     exact lines the bylaws spell out, so the operator sees the same
+     matchups they'd plan on paper. See Apps/Playoffs/tools/validate-
+     playoffs.mjs CHECK 26-28 for the assertions that lock this in.
+
+     Bylaws p. 5–6 (rev 1/30/2025):
+       (q=0, p=1) 4-5  → 1st vs Wild Card
+       (q=1, p=1) 6-7  → 2nd vs Wild Card
+       (q=1, p=2) 8-11 → 2nd vs Wild Card  AND  3rd vs 4th
+       (q=2, p=2) 12-14→ 3rd vs Wild Card  AND  4th vs 5th
+       (q=2, p=3) 15-16→ 3rd vs Wild Card  AND  4th vs 7th  AND  5th vs 6th
+  */
   function _buildAdvancementLines(numTeams, qualify, playoffs) {
     var triLines = [];
     var poLines  = [];
     for (var i = 1; i <= qualify; i++) {
       triLines.push(_ordinal(i) + ' place qualifies directly');
     }
-    if (playoffs > 0) {
-      var seeds = [];
-      for (var k = qualify + 1; k <= qualify + playoffs; k++) seeds.push(k);
-      if (playoffs === 1) {
-        poLines.push(_ordinal(seeds[0]) + ' place advances directly (wildcard)');
-      } else if (playoffs === 2) {
-        poLines.push(_ordinal(seeds[0]) + ' vs ' + _ordinal(seeds[1]) + ' — winner advances to Tri-Annuals');
-      } else if (playoffs === 3) {
-        poLines.push(_ordinal(seeds[1]) + ' vs ' + _ordinal(seeds[2]) + ' (' + _ordinal(seeds[0]) + ' bye)');
-        poLines.push('Winner vs ' + _ordinal(seeds[0]) + ' — winner advances to Tri-Annuals');
-      } else {
-        poLines.push('Seeds ' + seeds.join(', ') + ' compete; winner advances to Tri-Annuals.');
-      }
+    var key = qualify + ':' + playoffs;
+    if (key === '0:1') {
+      poLines.push('1st place vs Wild Card — winner advances to Tri-Annuals');
+    } else if (key === '1:1') {
+      poLines.push('2nd place vs Wild Card — winner advances to Tri-Annuals');
+    } else if (key === '1:2') {
+      poLines.push('2nd place vs Wild Card — winner advances to Tri-Annuals');
+      poLines.push('3rd vs 4th — winner advances to Tri-Annuals');
+    } else if (key === '2:2') {
+      poLines.push('3rd place vs Wild Card — winner advances to Tri-Annuals');
+      poLines.push('4th vs 5th — winner advances to Tri-Annuals');
+    } else if (key === '2:3') {
+      poLines.push('3rd place vs Wild Card — winner advances to Tri-Annuals');
+      poLines.push('4th vs 7th — winner advances to Tri-Annuals');
+      poLines.push('5th vs 6th — winner advances to Tri-Annuals');
+    } else if (playoffs > 0) {
+      /* Defensive fallback for any (qualify, playoffs) combination the
+         bylaws don't define. Surface a generic line so the UI at least
+         hints at the count instead of going silent. */
+      poLines.push(playoffs + ' playoff match(es) advance to Tri-Annuals (see bylaws p. 5–6)');
     }
     return { triAnnualLines: triLines, playoffLines: poLines };
   }
