@@ -1492,6 +1492,19 @@
         '&operator_id=eq.' + SPM_OPERATOR_ID +
         '&order=division_number.asc');
 
+      // Tri-Annuals scope ONLY (user direction 2026-07-08): the division
+      // dropdown must list 8-Ball / 9-Ball / DJ — never Masters, Doubles,
+      // or Ladies (they have their own separate playoffs). Filter here at
+      // the source so the dropdown, per-division lookups, and the summary
+      // banner all agree. Exact format match — substring matching once
+      // swept in '8-Ball Doubles'/'8-Ball Ladies'. DJ divisions are
+      // 8-Ball Open + 9-Ball Open pairs sharing a base name, so they
+      // survive this filter and collapse in the dropdown as designed.
+      divs = divs.filter(function (d) {
+        var fmt = (d.format || '').trim();
+        return fmt === '8-Ball Open' || fmt === '9-Ball Open';
+      });
+
       // Real team counts: query slate.teams and group by division_id.
       // slate.divisions.num_teams is the registered/PDF-imported count
       // which INCLUDES the "TBA" placeholder slot (always +1 vs the real
