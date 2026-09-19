@@ -8,4 +8,4 @@
    has no updater today (see task: port the canonical updater), but the
    order is kept canonical so muscle memory stays consistent fleet-wide.
    ════════════════════════════════════════════════════════════════════════ */
-window.APP_VERSION = '2.6';
+window.APP_VERSION = '2.7';

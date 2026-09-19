@@ -1285,6 +1285,7 @@
     <button class="lookup-btn" id="lookupBtn" type="submit">FIND ME</button>
   </form>
 
+  <p class="lookup-status" style="margin-top:6px">Or <a href="#" id="spmSignIn">sign in once</a> and every South Portland Metro app will know you.</p>
   <!-- ── Lookup status ─────────────────────────────────────────────── -->
   <div class="lookup-status" id="lookupStatus"></div>
 
@@ -1330,6 +1331,7 @@
 
 </div>
 
+<script src="https://southportlandmetroapa.github.io/shared/spm-auth.js"></script>
 <script>
   // ======================================================================
   // JavaScript — Playoffs standalone frontend
@@ -2407,13 +2409,38 @@
     // ── Auto-lookup from sessionStorage (remember user) ────────────────
     // Same pattern as MultiPass: if the user looked up before in this
     // browser tab, auto-repeat the lookup so they see their teams immediately.
-    try {
-      var lastInput = sessionStorage.getItem('playoffs_lastInput');
-      if (lastInput) {
-        document.getElementById('lookupInput').value = lastInput;
-        document.getElementById('lookupForm').dispatchEvent(new Event('submit'));
-      }
-    } catch (_) {}
+    /* ── Shared sign-in (spm-auth.js, SSO 2026-09-18): a session from ANY SPM app fills and submits the lookup ── */
+    spmAuth.onChange(function () { location.reload(); });
+    document.getElementById('spmSignIn').onclick = async function (ev) {
+      ev.preventDefault();
+      var v = (document.getElementById('lookupInput').value || '').trim();
+      var st = document.getElementById('lookupStatus');
+      if (!v) { st.textContent = 'Enter your APA # or email first, then tap sign in once.'; return; }
+      st.textContent = 'Sending your sign-in link…';
+      var r = await spmAuth.requestLink(v, 'playoffs');
+      st.textContent = r.ok ? 'Check your email — tap the link and every SPM app will know you.' : (r.error || 'Something went wrong.');
+    };
+    (async function () {
+      try {
+        var b = await spmAuth.boot({ app: 'playoffs' });
+        if (b.signedIn) {
+          var w = await spmAuth.whoami(b.token);
+          if (w && w.ok && w.me) {
+            document.getElementById('lookupInput').value = w.me.member_number;
+            document.getElementById('lookupForm').dispatchEvent(new Event('submit'));
+            return;
+          }
+        } else if (b.error) { document.getElementById('lookupStatus').textContent = b.error; }
+      } catch (_) {}
+      // ── Auto-lookup from sessionStorage (remember user) — the pre-SSO fallback ──
+      try {
+        var lastInput = sessionStorage.getItem('playoffs_lastInput');
+        if (lastInput) {
+          document.getElementById('lookupInput').value = lastInput;
+          document.getElementById('lookupForm').dispatchEvent(new Event('submit'));
+        }
+      } catch (_) {}
+    })();
   });
 </script>
 
